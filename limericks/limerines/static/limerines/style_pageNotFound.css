@@ -1,0 +1,9 @@
+h2{
+    position:absolute;
+    text-align: center;
+	top: 20%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 25px;
+    color:#576F72;
+}

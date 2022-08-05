@@ -1,0 +1,263 @@
+{% extends './base.html' %}
+{% load static %}
+{% block content %}
+{% load generate_extras %}
+
+{% get_pair_id limerick as limerick_pair %}
+{% get_pair_2_id limerick as limerick_pair2 %}
+{% pron_order limerick as pronounciations %}
+{% get_place limerick as place %}
+{% get_second_verses limerick as second %}
+{% get_third_verses limerick as third %}
+{% get_fourth_verses limerick as fourth %}
+{% get_fifth_verses limerick as fifth %}
+{% get_first_verses limerick as first %}
+{% get_previous limerick request.path limericks sort request.session.filtered_limericks as previous %}
+{% get_next limerick request.path limericks sort request.session.filtered_limericks as next %}
+{% get_all_limericks as all_existing_limericks %}
+{% random_from_limerick_list all_existing_limericks as random_limerick %}
+
+{{ all_existing_limericks|json_script:"all_limericks" }}
+{{ limerick_pair.id | json_script:"limerick-pair" }}
+{{ limerick_pair2.id | json_script:"limerick-pair2" }}
+{{ limerick.rank | json_script:"limerick-user-rank" }}
+{{ limerick.model_rank | json_script:"limerick-model-rank" }}
+{{ limerick_pair.rank | json_script:"limerick-pair-user-rank" }}
+{{ limerick_pair2.rank | json_script:"limerick-pair2-user-rank" }}
+{{ limerick_pair.model_rank | json_script:"limerick-pair-model-rank" }}
+{{ limerick_pair2.model_rank | json_script:"limerick-pair2-model-rank" }}
+{{ originating | json_script:"originating-id" }}
+
+{% if next %}
+    {{ next.id | json_script:"next-lim-id"}}
+{% else %}
+    {{ 0 | json_script:"next-lim-id"}}
+{% endif %}
+
+{% if previous %}
+    {{ previous.id | json_script:"previous-lim-id"}}
+{% else %}
+    {{ 0 | json_script:"previous-lim-id"}}
+{% endif %}
+
+<script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+<link rel="stylesheet" type="text/css" href="{% static 'limerines/style_results.css' %}">
+<script src="{% static 'limerines/results_code.js' %}"></script>
+
+{% if limericks %}
+    <input type="hidden" value={{request.path}} id="are-there-limericks">
+{% else %}
+    <input type="hidden" value={{request.path}}  id="are-there-limericks">
+{% endif %}
+
+<div class="container" id="main-container">
+    <section class="screen left">
+        <div class="limerick-block" id="limerick-block">
+            <div class="options" id="options-hidden">
+                <div class="hidden">
+                    <div><img src="{% static 'limerines/media/gender-icon.png' %}" width=30px></div>
+                </div>
+            </div>
+            <div class="limerick cards" id="original-limerick">
+                <div class = "card"  id="card">
+                    <div class="front">
+                        <div id="original-1">{{limerick.verse1}}</div><br>
+                        <div id="original-2">{{limerick.verse2}}</div><br>
+                        <div id="original-3">{{limerick.verse3}}</div><br>
+                        <div id="original-4">{{limerick.verse4}}</div><br>
+                        <div id="original-5">{{limerick.verse5}}</div>              
+                    </div>
+                    <div class="back" id="card-back">
+                        {% if limerick_pair %}
+                            {{limerick_pair.verse1}}<br><br>
+                            {{limerick_pair.verse2}}<br><br>
+                            {{limerick_pair.verse3}}<br><br>
+                            {{limerick_pair.verse4}}<br><br>
+                            {{limerick_pair.verse5}}<br>  
+                        {% else %}
+                            {{limerick.verse1}}<br><br>
+                            {{limerick.verse2}}<br><br>
+                            {{limerick.verse3}}<br><br>
+                            {{limerick.verse4}}<br><br>
+                            {{limerick.verse5}}<br>  
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="hidden-text" id="temp-card-back">
+                {% for verse in pronounciations %}
+                    <div class = pron-container1>
+                        {% for a, b in verse %}
+                            <div class = pron-container2>
+                                <div>{{a}}</div>
+                                <div class="pron-font">{{b}}</div><br>
+                            </div>
+                        {% endfor %}    
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="hidden-text" id="temp-card-back-pair2">
+                {% if limerick_pair2 %}
+                    {{limerick_pair2.verse1}}<br><br>
+                    {{limerick_pair2.verse2}}<br><br>
+                    {{limerick_pair2.verse3}}<br><br>
+                    {{limerick_pair2.verse4}}<br><br>
+                    {{limerick_pair2.verse5}}<br>            
+                {% endif %}
+            </div>
+            <div class="options" id="options">
+                <div><img src="{% static 'limerines/media/pron-icon.png' %}" class = "filter" width=30px id="pron-switch"></div>
+                <div><form id="submit-vote" method="post">
+                    {% csrf_token %}
+                    <div class="vote" id="voting-buttons">
+                        <div class="item-hidden">3</div>
+                        <div class="item-center">
+                            <button type="vote_button" onclick="vote('true')" class="increment up"></button>
+                            <button type="vote_button" onclick="vote('false')"  class="increment down"></button>
+                        </div>
+                        <input type="hidden" name = "upvote" id="action_vote">
+                        <input type="hidden" name = "limerick_id" value="{{limerick.pk}}">
+                        <div class="item-right">{{limerick.votes}}</div>
+                    </div>
+                </form></div>
+                {% if not place %}
+                    <div><img src="{% static 'limerines/media/gender-icon.png' %}" class = "filter" width=30px id="gender-switch"></div>
+                    <div><img src="{% static 'limerines/media/place-icon.png' %}" class = "filter" width=30px id="place-switch"></div>
+                {% else %}
+                    <div><img src="{% static 'limerines/media/male-icon.png' %}" class = "filter" width=30px id="gender-switch"></div>
+                    <div><img src="{% static 'limerines/media/female-icon.png' %}" class = "filter" width=30px id="place-switch"></div>
+                {% endif %}
+            </div>
+        </div>
+        <div id="navigation-buttons">
+            {% if previous %}
+                <div class="previous"><a id="previous-limerick" href="{{previous.id}}">&laquo;Previous</a></div>
+            {% else %}
+                <div class="previous disabled"><a id="previous-limerick" href='#'>&laquo;Previous</a></div>
+            {% endif %}
+            {% if next %}
+                <div class="next"><a id="next-limerick" href="{{next.id}}">Next&raquo;</a></div>
+            {% else %}
+                <div class="next disabled"><a id="next-limerick" href='#'>Next&raquo;</a></div>
+            {% endif %}
+        </div>
+        <div id="back-button"><a id="originating-limerick" href="#">Back to Original</a></div>
+        <img src="{% static 'limerines/media/edit-icon.png' %}" width=20px class="edit-filter" onclick="buttonClick()" id="edit-button">
+    </section>
+    <section class="screen right">
+        <div class="vline"></div>
+        <div class="limerick-block-edit">
+            <div id="notification"></div>
+            <div class="limerick">
+                <div class="select_filter" id="verse1-option">
+                    <div disabled class="default_option" id="verse1-current-parent">
+                        <div id="verse1-current-selection">{{limerick.verse1}}</div>
+                    </div>
+                    <ul class="select_ul" id="verse1-list">
+                        {% for verse in first %}
+                            <li>{{verse}}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="select_filter" id="verse2-option">
+                    <div class="default_option" id="verse2-current-parent">
+                        <div id="verse2-current-selection">{{limerick.verse2}}</div>
+                    </div>
+                    <ul class="select_ul" id="verse2-list">
+                        {% for verse in second %}
+                            <li>{{verse}}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="select_filter" id="verse3-option">
+                    <div class="default_option" id="verse3-current-parent">
+                        <div id="verse3-current-selection">{{limerick.verse3}}</div>
+                    </div>
+                    <ul class="select_ul" id="verse3-list">
+                        {% for verse in third %}
+                            <li>{{verse}}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="select_filter" id="verse4-option">
+                    <div class="default_option" id="verse4-current-parent">
+                        <div id="verse4-current-selection">{{limerick.verse4}}</div>
+                    </div>
+                    <ul class="select_ul" id="verse4-list">
+                        {% for verse in fourth %}
+                            <li>{{verse}}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="select_filter" id="verse5-option">
+                    <div class="default_option" id="verse5-current-parent">
+                        <div id="verse5-current-selection">{{limerick.verse5}}</div>
+                    </div>
+                    <ul class="select_ul" id="verse5-list">
+                        {% for verse in fifth %}
+                            <li>{{verse}}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <form id = "new-limerick-form" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="verse1" id="new-verse1">
+            <input type="hidden" name="verse2" id="new-verse2">
+            <input type="hidden" name="verse3" id="new-verse3">
+            <input type="hidden" name="verse4" id="new-verse4">
+            <input type="hidden" name="verse5" id="new-verse5">
+            <input type="hidden" name="overse3" id="o-verse3">
+            <input type="hidden" name="overse1" id="o-verse1">
+            <input type="hidden" name="overse4" id="o-verse4">
+            <input type="hidden" name="overse5" id="o-verse5">
+            <input type="hidden" name="female" value={{limerick.female}}>
+            <input type="hidden" name="place" value={{limerick.place}}>
+            <input type="hidden" name="adjective" value = {{limerick.adjective}}>
+            <input type="hidden" name="profession" value = {{limerick.profession}}>
+            <div class="generate" id="generate-button"><button disabled onclick = "loadingScreen()">Generate</button></div>
+            <div class="save" id="save-button"><button disabled onclick="loadingScreen()">Save</button></div>
+          </form>
+        <!--<div class="select_filter" id="gender_option">
+            <ul class="default_option" id="gender_current_selection_parent">
+                <li id="gender_current_selection">{{filter_form.gender.value}}</li>
+            </ul>
+            <ul class="select_ul" id="gender_list">
+              {% for x,y in filter_form.fields.gender.choices %}
+                <li>{{x}}</li>
+              {% endfor %}
+            </ul>
+          </div>-->
+    </section>
+</div>
+
+<div class="loading-screen" id="loading-screen">
+    <div class="limerick-random">
+        {% if random_limerick %}
+        <h2>Your results will be ready soon, in the meantime enjoy these limericks!</h2>
+        <div class="table-row">
+            <div class="limerick-text" id="current-random-limerick">
+                <div id="random-verse1">{{random_limerick.0}}</div>
+                <div id="random-verse2">{{random_limerick.1}}</div>
+                <div id="random-verse3">{{random_limerick.2}}</div>
+                <div id="random-verse4">{{random_limerick.3}}</div>
+                <div id="random-verse5">{{random_limerick.4}}</div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    <div class="loader"></div>
+</div>
+
+<img src="{% static 'limerines/media/trophy-icon.png' %}" width=35px onclick="openRanking()" id="score-button">
+<div id="rankings" class="sidepanel">
+    <a href="javascript:void(0)" class="closebtn" onclick="closeRanking()">&times;</a>
+    <label>User Rank</label>
+    <div class="score" id="user-rank-display">{{limerick.rank}}/{{all_existing_limericks|length}}</div>
+    <br>
+    <label>Model Rank</label>
+    <div class="score" id="model-rank-display">{{limerick.model_rank}}/{{all_existing_limericks|length}}</div>
+</div>
+
+{% endblock %}

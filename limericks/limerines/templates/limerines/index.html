@@ -1,0 +1,15 @@
+{% extends './base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" type="text/css" href="{% static 'limerines/style_index.css' %}">
+<script src="{% static 'limerines/index_code.js' %}"></script>
+
+<div class="head">
+    <h1 id="welcome"></h1>
+    <div class="button-container fadeOut" id="buttons">
+        <a href="{% url 'limerines:limericks' %}" class="button"> View Limericks</a>
+        <a href="{% url 'limerines:generate' %}" class="button"> Generate Limericks</a>
+    </div>
+</div>
+{% endblock %}

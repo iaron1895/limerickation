@@ -1,0 +1,160 @@
+{% extends './base.html' %}
+{% load static %}
+{% block content %}
+{% load generate_extras %}
+
+{% get_adjective_professions as adj_prof_dict %}
+
+{{ adj_prof_dict|json_script:"adjprof-data" }}
+{{ sort|json_script:"sort-type" }}
+
+<link rel="stylesheet" type="text/css" href="{% static 'limerines/style_limericks.css' %}">
+<script src="{% static 'limerines/limericks_code.js' %}"></script>
+
+<div id="table-filter" class="sidepanel">
+  <form id = "filter-form" method="post">
+    {% csrf_token %}
+      <a href="javascript:void(0)" class="closebtn" onclick="closeFilter()">&times;</a>
+      <label class="filter-label">Gender</label>
+      <div class="select_filter" id="gender_option">
+        <ul class="default_option" id="gender_current_selection_parent">
+            <li id="gender_current_selection">{{filter_form.gender.value}}</li>
+        </ul>
+        <ul class="select_ul" id="gender_list">
+          {% for x,y in filter_form.fields.gender.choices %}
+            <li>{{x}}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <label class="filter-label">Adjective</label>
+      <div class="select_filter" id="adjective_option">
+        <ul class="default_option" id="adjective_current_selection_parent">
+            <li id="adjective_current_selection">{{filter_form.adjective.value}}</li>
+        </ul>
+        <ul class="select_ul" id="adjective_list">
+          {% for x,y in filter_form.fields.adjective.choices %}
+            <li>{{x}}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <label class="filter-label">Profession</label>
+      <div class="select_filter" id="profession_option">
+        <ul class="default_option" id="profession_current_selection_parent">
+            <li id="profession_current_selection">{{filter_form.profession.value}}</li>
+        </ul>
+        <ul class="select_ul" id="profession_list">
+          {% for x,y in filter_form.fields.profession.choices %}
+            <li>{{x}}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <label class="filter-label">Type</label>
+      <div class="select_filter" id="type_option">
+        <ul class="default_option" id="type_current_selection_parent">
+            <li id="type_current_selection">{{filter_form.type.value}}</li>
+        </ul>
+        <ul class="select_ul" id="type_list">
+          {% for x,y in filter_form.fields.type.choices %}
+            <li>{{x}}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <br>
+      <input type="hidden" name= "gender" id="gender_selection">
+      <input type="hidden" name = "adjective" id="adjective_selection">
+      <input type="hidden" name = "profession" id="profession_selection">
+      <input type="hidden" name = "type" id="type_selection">
+      <input type="hidden" name = "sort" id="sort_by_filter">
+  </form>
+  <button for="filter-form" id="apply-filter" onclick="applyFilters()" disabled>Apply</button>
+</div>
+
+
+<div class="filters">
+  <img src="{% static 'limerines/media/remove-filter-icon.png' %}" width=25px class="filter-icon" id="remove-filters" onclick="clearAllFilters()">
+  <img src="{% static 'limerines/media/filter-icon.png' %}" width=25px class="filter-icon"  onclick="openFilter()">
+</div>
+<div class="sort">
+  <form id = "sort-table" method="post">
+    {% csrf_token %}
+    <input type="hidden" name= "gender" id="gender_selection_sort">
+    <input type="hidden" name = "adjective" id="adjective_selection_sort">
+    <input type="hidden" name = "profession" id="profession_selection_sort">
+    <input type="hidden" name = "type" id="type_selection_sort">
+    <input type="hidden" name = "sort" id="sort_by_sort">
+  </form>
+  <img src="{% static 'limerines/media/sort-icon.png' %}" width=25px class="sort-icon" id="sort-table"  onclick="sortTable()">
+  <div id="sorting-filter">
+    {% if sort == "user" %}
+      User Rating
+    {% else %}
+      Model Rating
+    {% endif %}
+  </div>
+</div>
+
+{% if limericks %}
+<ul class="responsive-table">
+    {% for limerick in limericks %} 
+    <li class="table-row">
+      {% if sort == 'user' %}
+        <div class="col col-details" >{{limerick.rank}}</div>
+      {% else %}
+        <div class="col col-details" >{{limerick.model_rank}}</div>
+      {% endif %}
+      <a href="/limerines/limericks/{{ limerick.id }}">
+        <div class="col col-content">
+          {{limerick.verse1}}<br>
+          {{limerick.verse2}}<br>
+          {{limerick.verse3}}<br>
+          {{limerick.verse4}}<br>
+          {{limerick.verse5}}
+        </div>
+      </a>
+      <div class="col col-details">
+        <div class="vote">
+          <div class="count" id="vote_data_{{limerick.pk}}">{{limerick.votes}}</div><br>
+          <button type="vote_button" onclick="updateCurrentValuesVote('true','{{limerick.pk}}')" class="increment up"></button>
+          <button type="vote_button" onclick="updateCurrentValuesVote('false','{{limerick.pk}}')"  class="increment down"></button>
+          <form id = "submit-vote" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="limerick_id" id="limerick_id">
+            <input type="hidden" name= "gender" id="gender_selection_vote">
+            <input type="hidden" name = "adjective" id="adjective_selection_vote">
+            <input type="hidden" name = "profession" id="profession_selection_vote">
+            <input type="hidden" name = "type" id="type_selection_vote">
+            <input type="hidden" name = "upvote" id="action_vote">
+            <input type="hidden" name = "sort" id="sort_by_vote">
+          </form>
+        </div>
+      </div>
+    </li>
+    {% endfor %}
+
+    {% if limericks.has_other_pages %}
+    <div class="pagination">
+      {% if limericks.has_previous %}
+        <a href="?page={{ limericks.previous_page_number }}">&laquo;</a>
+      {% else %}
+        <a class="disabled"><span>&laquo;</span></a>
+      {% endif %}
+      {% for i in limericks.paginator.page_range %}
+        {% if limericks.number == i %}
+          <a class="active"><span>{{ i }}</span></a>
+        {% else %}
+          <a href="?page={{ i }}">{{ i }}</a>
+        {% endif %}
+      {% endfor %}
+      {% if limericks.has_next %}
+        <a href="?page={{ limericks.next_page_number }}">&raquo;</a>
+      {% else %}
+        <a class="disabled"><span>&raquo;</span></a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </ul>
+{% else %}
+  <ul class="responsive-table"><h2>Current filters did not return any limericks</h2></ul>
+{% endif %}
+{% endblock %}
+

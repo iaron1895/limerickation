@@ -1,0 +1,50 @@
+
+*{
+	list-style: none;
+}
+
+
+body {
+    background-color:#E4DCCF;
+    font-family: Helvetica;
+}
+
+.banner { 
+	position: absolute; 
+	top: 0; 
+	left: 0; 
+	background-color: #576F72; 
+	width: 100%; 
+	height: 60px;
+}
+
+.banner .banner-content { 
+	padding: 10px; 
+	color: #F0EBE3;
+	font-weight: bold;
+	font-size: 30px;
+	position: absolute;
+	vertical-align: middle;
+}
+
+.banner a { 
+	color: #F0EBE3;
+}
+
+.banner a:link { 
+	text-decoration: none; 
+}
+
+.banner a:visited { 
+	text-decoration: none;
+}
+
+.banner a:hover { 
+	color: #E4DCCF;
+	text-decoration: none; 
+}
+
+.banner a:active { 
+	color: #E4DCCF;
+	text-decoration: none; 
+}

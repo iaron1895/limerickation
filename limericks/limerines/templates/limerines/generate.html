@@ -1,0 +1,75 @@
+{% extends './base.html' %}
+{% load static %}
+{% block content %}
+{% load generate_extras %}
+
+{% get_adjective_professions as adj_prof_dict %}
+{% get_all_limericks as all_existing_limericks %}
+{% random_from_limerick_list all_existing_limericks as random_limerick %}
+
+{{ all_existing_limericks|json_script:"all_limericks" }}
+{{ adj_prof_dict|json_script:"adjprof-data" }}
+
+<link rel="stylesheet" type="text/css" href="{% static 'limerines/style_generate.css' %}">
+<script src="{% static 'limerines/code.js' %}"></script>
+<div id="container">
+    <form id="limerick-generation" method="post">
+        {% csrf_token %}
+        <div class="block">
+            <div class="wrapper">
+                <div class="title"> First choose an adjective:</div>
+                    <div class="select_wrap" id="adjective_option">
+                        <ul class="default_option" id="adjective_current_selection_parent">
+                            <li id="adjective_current_selection">{{form.adjective.initial}}</li>
+                        </ul>
+                        <ul class="select_ul" id="adjective_list">
+                            {% for x,y in form.fields.adjective.choices %}
+                                <li>{{x}}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+            </div>
+            <br>
+            <div class="wrapper">
+                <div class="title"> Now choose a profession:</div>
+                    <div class="select_wrap" id="profession_option">
+                        <ul class="default_option" id="profession_current_selection_parent">
+                            <li id="profession_current_selection">{{form.profession.initial}}</li>
+                        </ul>
+                        <ul class="select_ul" id="profession_list">
+                            {% for x,y in form.fields.profession.choices %}
+                                <li>{{x}}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+            </div>
+            <br>
+            <input id="random_selection" class="button" type="button" value="Random">
+            <br>
+            <input id="submit_form" class="button" type="button" value="Best Limerick" onclick="sendGenerationForm('multiple')">
+            <br>
+            <input id="submit_single_form" class="button" type="button" value="Quick Limerick" onclick="sendGenerationForm('single')">
+            <input type="hidden" name="adjective" id="adjective_selection">
+            <input type="hidden" name= "profession" id="profession_selection">
+            <input type="hidden" name= "kind" id="generation_kind">
+        </div>
+    </form>
+</div>
+<div class="loading-screen" id="loading-screen">
+    <div class="limerick-random">
+        {% if random_limerick %}
+        <h2>Your results will be ready soon, in the meantime enjoy these limericks!</h2>
+        <div class="table-row">
+            <div class="limerick-text" id="current-random-limerick">
+                <div id="random-verse1">{{random_limerick.0}}</div>
+                <div id="random-verse2">{{random_limerick.1}}</div>
+                <div id="random-verse3">{{random_limerick.2}}</div>
+                <div id="random-verse4">{{random_limerick.3}}</div>
+                <div id="random-verse5">{{random_limerick.4}}</div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    <div class="loader"></div>
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+    <link rel="stylesheet" type="text/css" href="{% static 'limerines/style_base.css' %}">
+    <div class="banner">
+        <div><a class="banner-content" href="{% url 'limerines:index' %}">Limerickation.</a></div>
+    </div>
+    <body>
+    {% block content %}
+    {% endblock %}
+    </body>
+</html>
+

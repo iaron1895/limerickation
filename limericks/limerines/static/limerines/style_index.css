@@ -1,0 +1,76 @@
+.banner {
+	visibility: hidden;
+}
+
+body {
+    background-color:#7D9D9C;
+    font-family: Helvetica;
+}
+
+.head {
+    display: flex;
+	justify-content: center;
+  	align-items: center;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+	position:absolute;
+	flex-direction: column;
+}
+
+.head h1{
+    margin:0px;
+    font-size: 70px;
+    color:#E4DCCF;
+    padding-bottom: 0.5em;
+    text-align: center;
+}
+
+.head .button-container {
+	display: flex;
+	flex-direction: row;
+}
+.head .button-container .button {
+    margin: 10px;
+    padding: 0.75rem 1rem;
+	border: 0;
+	border-radius: 0.317rem;
+	background-color: #576F72;
+	color: #E4DCCF;
+	text-decoration: none;
+	font-weight: 700;
+	font-size: 1rem;
+    line-height: 1.5;
+	cursor: pointer;
+	-webkit-appearance: none;
+	-webkit-font-smoothing: antialiased;
+    width: 150px;
+    text-align: center;
+}
+
+.head .button:hover {
+	opacity: 0.85;
+}
+
+.head .button:active {
+	box-shadow: inset 0 3px 4px hsla(0, 0%, 0%, 0.2);
+}
+
+.head .button:focus {
+	outline: thin dotted #444;
+	outline: 5px auto -webkit-focus-ring-color;
+	outline-offset: -2px;
+}
+
+.fadeOut {
+	opacity: 0;
+  }
+  
+.fadeIn {
+	opacity: 1;
+	transition: all 3.5s;
+	-webkit-transition: all 3.5s;
+	-moz-transition: all 3.5s;
+	-ms-transition: all 3.5s;
+	-o-transition: all 3.5s;
+}
