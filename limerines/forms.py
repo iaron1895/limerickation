@@ -3,8 +3,12 @@ from django.db.utils import OperationalError
 
 try:
     from .models import AdjProfHelper
-    ADJECTIVE_CHOICES = AdjProfHelper.object().adjectives_list
-    PROFESSION_CHOICES = AdjProfHelper.object().profession_list
+    try:
+        ADJECTIVE_CHOICES = AdjProfHelper.object().adjectives_list
+        PROFESSION_CHOICES = AdjProfHelper.object().profession_list
+    except:
+        ADJECTIVE_CHOICES = []
+        PROFESSION_CHOICES = []
 except OperationalError:
     ADJECTIVE_CHOICES = []
     PROFESSION_CHOICES = []
