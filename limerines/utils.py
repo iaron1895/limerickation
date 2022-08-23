@@ -1,18 +1,28 @@
 import pickle
-#import bz2file as bz2
 import torch
 import nltk
+from nltk import download
 import numpy as np
-import requests
 from nltk.stem import WordNetLemmatizer
 import re
 import collections
 
+
+#from transformers import  GPT2Tokenizer, GPT2LMHeadModel, pipeline, BertTokenizer, BertLMHeadModel
+
 def get_pos_tags(tokens):
-    return nltk.pos_tag(tokens)
+    tags = None
+    try:
+        tags = nltk.pos_tag(tokens)
+    except LookupError:
+        download('average_perceptron_tagger')
+        tags = nltk.pos_tag(tokens)
+    return tags
 
 def get_feminine(words):
+    print("gettin feminine")
     tags = get_pos_tags(words)
+    print(tags)
     result = []
     for word, tag in tags:
         if tag == 'PRP' and word.lower() == 'him':
@@ -39,6 +49,8 @@ def get_feminine(words):
 def get_masculine(words):
     tags = get_pos_tags(words)
     result = []
+    print("gettin masculine")
+    print(tags)
     for word, tag in tags:
         if tag == 'PRP' and word.lower() == 'her':
             new_word = 'Him' if word[0].isupper() else 'him'
@@ -47,6 +59,8 @@ def get_masculine(words):
         elif tag == 'PRP' and word.lower() == 'she':                          
             new_word = 'He' if word[0].isupper() else 'he'
         elif tag == 'PRP$' and word.lower() == 'hers':
+            new_word = 'His' if word[0].isupper() else 'his'
+        elif tag == 'PRP$' and word.lower() == 'her':
             new_word = 'His' if word[0].isupper() else 'his'
         elif tag == 'PRP' and word.lower() == 'her.':
             new_word = 'Him.' if word[0].isupper() else 'him.'
@@ -59,6 +73,8 @@ def get_masculine(words):
         else:
             new_word = word
         result.append(new_word)
+    print("result of masculine is")
+    print(result)
     return result
 
 def syllables_in_verse(verse):
@@ -71,15 +87,14 @@ def syllables_in_verse(verse):
 def check_end_of_sentence(input_text, length_input_text, model, tokenizer):
     if len(tokenizer(input_text)['input_ids']) != length_input_text:
         return False
-    inputs = tokenizer.encode(input_text, return_tensors = 'pt')
-    outputs = model.generate(inputs, pad_token_id=tokenizer.eos_token_id, max_length = length_input_text+1, do_sample = True, num_return_sequences = 10)
+    inputs = tokenizer.encode("There was " + input_text, return_tensors = 'pt')
+    outputs = model.generate(inputs, pad_token_id=tokenizer.eos_token_id, max_length = length_input_text+3, do_sample = True, num_return_sequences = 10)
     for output in outputs:
         text = tokenizer.decode(output, skip_special_tokens = True)
         words = text.split()
         if words[-1][-1] == '.':
             return True
     return False
-
 
 def save_model(model,filename):
     """ 
@@ -100,7 +115,7 @@ def load_model(filename):
     
 def get_three_highest(text, model, tokenizer, exceptions = []):
     exceptions.extend(['wasn','couldn','hadn','wouldn','weren','shouldn','haven','hasn','isn','aren','didn'])
-    inpts = tokenizer(text, return_tensors="pt")
+    inpts = tokenizer("There was " + text, return_tensors="pt")
 
     with torch.no_grad():
         logits = model(**inpts).logits[:, -1, :]
@@ -145,9 +160,10 @@ def return_verses(limerick):
             break
     return [v2,v3,v4,v5]
 
-def get_three_highest_verbs(text, model, tokenizer, exceptions = []):
+def get_ten_highest_verbs(text, model, tokenizer, exceptions = []):
+    exceptions.extend(['wasn','couldn','hadn','wouldn','weren','shouldn','haven','hasn','isn','aren','didn'])
     tokens = text.split()
-    inpts = tokenizer(text, return_tensors="pt")
+    inpts = tokenizer("There was " + text, return_tensors="pt")
 
     with torch.no_grad():
         logits = model(**inpts).logits[:, -1, :]
@@ -199,7 +215,7 @@ def get_scores(texts, model, tokenizer):
     
 def get_masked_word(text, unmasker):
     masked_words = []
-    result = unmasker(text,top_k=5)
+    result = unmasker("There was " + text,top_k=5)
     masked_words = [r["token_str"][1:] for r in result]
     return masked_words
 
@@ -326,12 +342,18 @@ def count_syllables(word):
     return numVowels - disc + syls
 
 
-"""def decompress_model():
-    data = bz2.BZ2File('limerines/my_data/gpt2_model.pbz2', 'rb')
-    (tokenizer, model) = pickle.load(data)
-    return (tokenizer, model)
+def create_dictionary():
+    embeddings_dict = {}
+    with open("limerines/my_data/glove.6B.50d.txt", 'r') as f:
+        for line in f:
+            values = line.split()
+            word = values[0]
+            vector = np.asarray(values[1:], "float32")
+            embeddings_dict[word] = vector
+    return embeddings_dict
 
-def decompress_unmasker():
-    data = bz2.BZ2File('limerines/my_data/unmasker.pbz2', 'rb')
-    unmasker = pickle.load(data)
-    return unmasker"""
+
+"""def find_closest_embeddings(embeddings_dict, input):
+    embedding = embeddings_dict[input]
+    return sorted(embeddings_dict.keys(), key=lambda word: spatial.distance.euclidean(embeddings_dict[word], embedding))[1:]
+"""

@@ -1,13 +1,13 @@
 from django import template
 from ..utils import load_model, syllables_in_verse
-from ..models import Limerick
+from ..models import Limerick, AdjProfHelper
 import random
 
 register = template.Library()
 
 @register.simple_tag
 def get_adjective_professions():
-    return load_model('limerines/my_data/adjective_professions.pickle')
+    return AdjProfHelper.object().adjective_profession
     
 @register.simple_tag
 def get_pair_id(limerick):
@@ -27,7 +27,7 @@ def pron_order(limerick):
     i = 1
     for verse in [limerick.verse1, limerick.verse2, limerick.verse3, limerick.verse4, limerick.verse5]:
         words = verse.split()
-        pron = limerick.pronounciation["verse"+str(i)]
+        pron = limerick.pronunciation["verse"+str(i)]
         list_zip = zip(words, pron)
         result.append(list(list_zip))
         i += 1
@@ -106,7 +106,6 @@ def get_first_verses(limerick):
 
 @register.simple_tag
 def get_previous(limerick, url, limericks, sort, filtered_limericks):
-    print(f'filtred limerick is  {filtered_limericks}')
     if filtered_limericks:
         if limerick.id != filtered_limericks[0]:
             index = filtered_limericks.index(limerick.id)
@@ -115,9 +114,9 @@ def get_previous(limerick, url, limericks, sort, filtered_limericks):
             return None
     if 'edit' not in url:
         if sort == 'user':
-            prev_limerick = (Limerick.objects.filter(rank__lt=limerick.rank).exclude(id=limerick.id).order_by('-rank').first())
+            prev_limerick = (Limerick.objects.filter(rank__lt=limerick.rank).exclude(id=limerick.id).order_by('-rank','pk').first())
         else:
-            prev_limerick = (Limerick.objects.filter(model_rank__lt=limerick.model_rank).exclude(id=limerick.id).order_by('-model_rank').first())
+            prev_limerick = (Limerick.objects.filter(model_rank__lt=limerick.model_rank).exclude(id=limerick.id).order_by('-model_rank','pk').first())
         return prev_limerick
     elif 'result' not in url:
         if limericks:
@@ -130,7 +129,6 @@ def get_previous(limerick, url, limericks, sort, filtered_limericks):
 
 @register.simple_tag
 def get_next(limerick, url, limericks, sort, filtered_limericks):
-    print(f'filtred limerick is  {filtered_limericks}')
     if filtered_limericks:
         if limerick.id != filtered_limericks[-1]:
             index = filtered_limericks.index(limerick.id)

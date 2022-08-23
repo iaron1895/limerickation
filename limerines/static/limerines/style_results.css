@@ -636,3 +636,17 @@
 #score-button {
 	opacity: 0.8;
 }
+
+.limericks-back {
+	top:100px;
+	position: absolute;
+	right: 40px;
+	cursor:pointer;
+	color: #7D9D9C;
+	font-weight: bold;
+	text-decoration: underline;
+}
+
+.limericks-back:hover {
+	opacity: 0.8;
+}

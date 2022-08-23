@@ -15,10 +15,11 @@ function editableLimerick() {
     editable = (window.location.href.indexOf("edit") > -1 && window.location.href.indexOf("result") <= -1);
     if(editable) {
         document.getElementById("edit-button").style.visibility = 'visible';
-        url_prev = (previous_lim_id != 0) ? "/limerines/limericks/"+previous_lim_id+"/edit" : "#"
+        url_prev = (previous_lim_id != 0) ? "/limericks/"+previous_lim_id+"/edit" : "#"
         document.getElementById("previous-limerick").setAttribute("href",url_prev) 
-        url_next = (next_lim_id != 0) ? "/limerines/limericks/"+next_lim_id+"/edit" : "#"
+        url_next = (next_lim_id != 0) ? "/limericks/"+next_lim_id+"/edit" : "#"
         document.getElementById("next-limerick").setAttribute("href",url_next) 
+        document.getElementById("back-to-limericks").style.display = "none";
     }
 }
 
@@ -29,8 +30,9 @@ function resultingLimerick() {
     }
     else {
         document.getElementById("back-button").style.visibility = 'visible';
-        url_back = (originating_id != 0) ? "/limerines/limericks/"+originating_id+"/edit" : "#";
+        url_back = (originating_id != 0) ? "/limericks/"+originating_id+"/edit" : "#";
         document.getElementById("originating-limerick").setAttribute("href",url_back);
+        document.getElementById("back-to-limericks").style.display = "none";
     }
 }
 

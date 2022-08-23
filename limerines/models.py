@@ -6,17 +6,18 @@ import numpy as np
 from nltk.corpus import names
 from transformers import  GPT2Tokenizer, GPT2LMHeadModel, pipeline
 
+
 from .utils import get_three_highest, get_pos_tags, \
     syllables_in_verse, get_scores, \
     check_end_of_sentence, \
     get_masked_word, count_syllables, \
-    return_verses, get_three_highest_verbs, \
+    return_verses, get_ten_highest_verbs, \
     get_feminine, get_masculine, load_model
 
-FEMININE_PROFESSIONS = {'actress':'actor', 'businesswoman':'businessman', 'saleswoman':'salesman', 'waitress':'waiter', 'woman':'man', 'girl':'boy'}
-MODEL = GPT2LMHeadModel.from_pretrained('gpt2')
-TOKENIZER = GPT2Tokenizer.from_pretrained('gpt2')
+MODEL = GPT2LMHeadModel.from_pretrained('distilgpt2')
+TOKENIZER = GPT2Tokenizer.from_pretrained('distilgpt2')
 UNMASKER = pipeline("fill-mask",model="distilroberta-base")
+FEMININE_PROFESSIONS = {'actress':'actor', 'businesswoman':'businessman', 'saleswoman':'salesman', 'waitress':'waiter', 'woman':'man', 'girl':'boy'}
 
 class AdjProfHelper(models.Model):
     adjectives_list = models.JSONField(null=True)
@@ -38,7 +39,7 @@ class AdjProfHelper(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.pk and AdjProfHelper.objects.exists():
-            raise Exception('There is can be only one AdjProfHelper instance')
+            raise Exception('There can only be one AdjProfHelper instance')
         if not AdjProfHelper.objects.exists():
             self.construct()
         return super(AdjProfHelper, self).save(*args, **kwargs)
@@ -62,14 +63,14 @@ class TemplateHelper(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.pk and TemplateHelper.objects.exists():
-            raise Exception('There is can be only one TemplateHelper instance')
+            raise Exception('There can only be one TemplateHelper instance')
         if not TemplateHelper.objects.exists():
             self.construct()
         return super(TemplateHelper, self).save(*args, **kwargs)
 
 class RhymePronHelper(models.Model):
     rhymes = models.JSONField(null=True)
-    pronounciation = models.JSONField(null=True)
+    pronunciation = models.JSONField(null=True)
 
     def get_rhymes(self,word):
         if word in self.rhymes.keys():
@@ -89,9 +90,9 @@ class RhymePronHelper(models.Model):
         self.save()
         return resulting_rhymes
 
-    def get_pronounciation(self, word):
-        if word in self.pronounciation.keys():
-            return self.pronounciation[word]
+    def get_pronunciation(self, word):
+        if word in self.pronunciation.keys():
+            return self.pronunciation[word]
 
         url = "https://rhymebrain.com/talk?function=getWordInfo&word=" + word
         try:
@@ -100,7 +101,7 @@ class RhymePronHelper(models.Model):
         except:
             return ''
 
-        self.pronounciation[word] = result
+        self.pronunciation[word] = result
         self.save()
         return result
 
@@ -199,10 +200,10 @@ class RhymePronHelper(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.pk and RhymePronHelper.objects.exists():
-            raise Exception('There is can be only one RhymePronHelper instance')
+            raise Exception('There can only be one RhymePronHelper instance')
         if not RhymePronHelper.objects.exists():
             self.rhymes =  load_model('limerines/my_data/rhymes.pickle')
-            self.pronounciation = load_model('limerines/my_data/pronounciation.pickle')
+            self.pronunciation = load_model('limerines/my_data/pronunciation.pickle')
         return super(RhymePronHelper, self).save(*args, **kwargs)
 
 class Limerick(models.Model):
@@ -218,7 +219,7 @@ class Limerick(models.Model):
     profession = models.CharField(max_length=100)
     female = models.BooleanField()
     place = models.BooleanField()
-    pronounciation = models.JSONField(null=True)
+    pronunciation = models.JSONField(null=True)
     pair = models.IntegerField(null=True)
     pair2 = models.IntegerField(null=True)
     scored_second = models.JSONField(null=True)
@@ -234,7 +235,7 @@ class Limerick(models.Model):
     def return_whole_sentence(self):
         return self.verse1 + " " + self.verse2 + " " + self.verse3 + " " + self.verse4 + " " + self.verse5
 
-    def get_pronounciation(self):
+    def get_pronunciation(self):
         i = 1
         field_data = {}
         for verse in [self.verse1, self.verse2, self.verse3, self.verse4, self.verse5]:
@@ -242,12 +243,12 @@ class Limerick(models.Model):
             words = verse.split()
             for word in words:
                 if word.isalpha():
-                    result.append(RhymePronHelper.object().get_pronounciation(word))
+                    result.append(RhymePronHelper.object().get_pronunciation(word))
                 else:
-                    result.append(RhymePronHelper.object().get_pronounciation(word[:-1]))
+                    result.append(RhymePronHelper.object().get_pronunciation(word[:-1]))
             field_data['verse'+str(i)] = result
             i += 1
-        self.pronounciation = field_data
+        self.pronunciation = field_data
 
     def get_perplexity(self):
         text = self.return_whole_sentence()
@@ -280,9 +281,6 @@ class Verse():
         self.current_best_verses = []
 
     def found_a_template_match(self, tags):
-        words = [t[0] for t in tags] #to delete
-        if len(words) > 3 and words[3] == 'whose':
-            print(f'Current tags are {tags}')
         final = False
         found = False
         pos_tags = [t[1] for t in tags]
@@ -325,10 +323,11 @@ class Verse():
                     new_verse = potential_verse + [npw]
                     syllables = syllables_in_verse(' '.join(new_verse[length:]))
                     if final and secondVerse:
-                        if syllables in syllables_needed and check_end_of_sentence(' '.join(new_verse[length:]), len(new_verse[length:]), MODEL, TOKENIZER) and RhymePronHelper.object().proper_noun_rhyme_exists(new_verse[length:][-1],candidate[0][:length]):
+                        if syllables in syllables_needed and RhymePronHelper.object().proper_noun_rhyme_exists(new_verse[length:][-1],candidate[0][:length]) and check_end_of_sentence(' '.join(new_verse[length:]), len(new_verse[length:]), MODEL, TOKENIZER):
                             if any(fv[0] == candidate[0][:length] for fv in final_verses):
                                 get_element = [i for i, fv in enumerate(final_verses) if fv[0] == candidate[0][:length]][0]
                                 final_verses[get_element][1].append(new_verse[length:])
+
                             else:
                                 final_verses.append((candidate[0][:length], [new_verse[length:]]))
                     if final and not secondVerse:
@@ -371,13 +370,12 @@ class Verse():
         n_verses = final_fourth_verse[1]
         print(f'There are {len(n_verses)} verses prepared for rhyiming')
         print()
-        index_rhyme = [i for i,e in enumerate(p_verse) if '.' in e]
         rhyming = RhymePronHelper.object().get_rhymes(last_word)[:10]
         results = []
         for n_verse in n_verses:
             for rw in rhyming:
                 eop = rw + punc
-                prompt = ' '.join(p_verse[index_rhyme[0]+1:] + n_verse) + " <mask> " + eop
+                prompt = ' '.join(p_verse + n_verse) + " <mask> " + eop
                 masked_words = get_masked_word(prompt, UNMASKER)
                 for mw in masked_words:
                     tokens = get_pos_tags(n_verse + [mw,rw])
@@ -398,12 +396,12 @@ class SecondVerse(Verse):
         self.second_verse_starting_candidates = second_verse_starting_candidates
         super().__init__(TemplateHelper.object().second_verse_templates,None)
 
-    def generate_beggining(self):
+    def generate_beginning(self):
         print(f'Exceptions for second verse are {self.verb_exceptions}')
         print()
         result = []
         who_prompt = ' '.join(self.second_verse_starting_candidates[0])
-        next_potential_verbs = get_three_highest_verbs(who_prompt, MODEL, TOKENIZER, self.verb_exceptions)
+        next_potential_verbs = get_ten_highest_verbs(who_prompt, MODEL, TOKENIZER, self.verb_exceptions)
         print(f'potential verbs for second verse {next_potential_verbs}')
         print()
         next_potential_verbs = random.sample(next_potential_verbs, 3)
@@ -428,8 +426,8 @@ class SecondVerse(Verse):
         print(f'Second verse candidates are')
         print(second_verse_candidates)
         print()
-        verbs = [v[4] for (v,l) in second_verse_candidates if v[3] == 'who']
-        print(f'Verbs from second_verse_candidates are {verbs}')
+        second_word = [v[4] for (v,l) in second_verse_candidates]
+        print(f'second words from second_verse_candidates are {second_word}')
         final_second_verses = []
         for svc in second_verse_candidates:
             print(f'At potential verse {svc}')
@@ -438,9 +436,41 @@ class SecondVerse(Verse):
             final_second_verses = self.get_iteration_result(potential_second_verses, [9], final_second_verses, svc, False, exceptions=[], secondVerse = True)
         
         if len(final_second_verses) == 0:
-            svc = self.generate_beggining()
+            svc = self.generate_beginning()
             self.generate_all(svc)
         
+            """else:
+            verse1 = final_second_verses[0][0]
+            verses2 = final_second_verses[0][1]
+            word1list = [v for v in verses2 if v[1] == second_word[0] and v[0] == 'who']
+            word2list = [v for v in verses2 if v[1] == second_word[1] and v[0] == 'who']
+            word3list = [v for v in verses2 if v[1] == second_word[2] and v[0] == 'who']
+            word4list = [v for v in verses2 if v[1] == second_word[3] and v[0] == 'whose']
+            word5list = [v for v in verses2 if v[1] == second_word[4] and v[0] == 'whose']
+            word6list = [v for v in verses2 if v[1] == second_word[5] and v[0] == 'whose']
+            iteration_list = [word1list, word2list, word3list, word4list, word5list, word6list]
+            print("Iteration list is")
+            print(iteration_list)
+            texts = []
+            for il in iteration_list:
+                current_texts = [' '.join(verse1 + verse2)+"." for verse2 in il]
+                texts.extend(current_texts)
+                scored_current = sorted(get_scores(current_texts, MODEL, TOKENIZER), key=lambda x: x[1]).copy()
+                scored_current = [sc for sc in scored_current if ' '.join(sc[0].split()[3:]) not in all_second_verses()]
+                self.current_best_verses.extend([(sc[0].split(), len(sc[0].split()), sc[1]) for sc in scored_current[:2]])
+                self.current_best_verses = sorted(self.current_best_verses, key=lambda x: x[2])
+                print("Current best verses are")
+                print(self.current_best_verses)
+
+            self.scored_verses = sorted(get_scores(texts, MODEL, TOKENIZER), key=lambda x: x[1]).copy()
+            self.scored_verses = [sv for sv in self.scored_verses if ' '.join(sv[0].split()[3:]) not in all_second_verses()]
+            self.current_verse = (self.scored_verses[0][0].split(), len(self.scored_verses[0][0].split()))
+            print(f'There are {len(self.scored_verses)} second verses')
+            print()
+            print(f'The current verse is {self.current_verse}')
+            print()
+            print(f'The current best verses are {self.current_best_verses}')"""
+            
         else:
             verse1 = final_second_verses[0][0]
             verses2 = final_second_verses[0][1]
@@ -448,7 +478,7 @@ class SecondVerse(Verse):
             self.scored_verses = sorted(get_scores(texts, MODEL, TOKENIZER), key=lambda x: x[1]).copy()
             self.scored_verses = [sv for sv in self.scored_verses if ' '.join(sv[0].split()[3:]) not in all_second_verses()]
             self.current_verse = (self.scored_verses[0][0].split(), len(self.scored_verses[0][0].split()))
-            self.current_best_verses = [(sv[0].split(), len(sv[0].split())) for sv in self.scored_verses[:5]]
+            self.current_best_verses = [(sv[0].split(), len(sv[0].split()), sv[1]) for sv in self.scored_verses[:5]]
             print(f'There are {len(self.scored_verses)} second verses')
             print()
             print(f'The current verse is {self.current_verse}')
@@ -468,10 +498,8 @@ class SecondVerse(Verse):
         else:
             print(f'Getting next five best second verses')
             self.scored_verses = self.scored_verses[5:]
-            try:
-                self.current_best_verses = [(sv[0].split(), len(sv[0].split())) for sv in self.scored_verses[:5]]
-                print(f'Found five next best verses')
-            except:
+            self.current_best_verses = [(sv[0].split(), len(sv[0].split()), sv[1]) for sv in self.scored_verses[:5]]
+            if len(self.current_best_verses) == 0:
                 raise Exception("Sorry, no limericks could be generated")
 
     def get_rhyming_results(self, final_verses, last_word):
@@ -484,8 +512,6 @@ class ThirdVerse(Verse):
         super().__init__(TemplateHelper.object().third_verse_templates, secondVerse)
 
     def generate_all(self, original='',multiple=False):
-        print("The third verse is feminine")
-        print(self.feminine)
         done = False
         while not done:
             final_third_verses = []
@@ -508,10 +534,12 @@ class ThirdVerse(Verse):
                 print()
                 potential_third_verses = []
                 start_prompt = ' '.join(tvc[0])
-                next_potential_verbs = get_three_highest_verbs(start_prompt, MODEL, TOKENIZER, ["was","had"])
+                next_potential_verbs = get_ten_highest_verbs(start_prompt, MODEL, TOKENIZER, ["was","had"])
+                next_potential_verbs = random.sample(next_potential_verbs, 3)
                 for npv in next_potential_verbs:
                     new_verse = tvc[0] + [npv]
                     potential_third_verses.append((new_verse, self.previous_verse.current_verse[1]))
+                
                 final_third_verses = self.get_iteration_result(potential_third_verses, [6], final_third_verses, tvc, False)
 
             if len(final_third_verses) > 0:
@@ -529,27 +557,25 @@ class ThirdVerse(Verse):
             current_texts = [' '.join(verse2 + verse3) for verse3 in verses3]
             texts.extend(current_texts)
             scored_current = sorted(get_scores(current_texts, MODEL, TOKENIZER), key=lambda x: x[1]).copy()
-            print("Scored current")
-            print(scored_current)
-            print()
+
             if original != '':
                 originalWords = original.split()
                 scored_current = [sv for sv in scored_current if sv[0].split()[-len(originalWords):] != originalWords] 
+
             if self.feminine:  
                 scored_current = [sc for sc in scored_current if ' '.join(sc[0].split()[sc[0].split().index('She'):]) not in all_third_verses()]
             else:
                 scored_current = [sc for sc in scored_current if ' '.join(sc[0].split()[sc[0].split().index('He'):]) not in all_third_verses()]
-            print(f'for final third verse {ftv} the best two verses are')
-            print()
-            print([(sc[0].split(), len(sc[0].split())) for sc in scored_current[:2]])
-            print()
-            self.current_best_verses.extend([(sc[0].split(), len(sc[0].split())) for sc in scored_current[:2]])
+
+            self.current_best_verses.extend([(sc[0].split(), len(sc[0].split()), sc[1]) for sc in scored_current[:2]])
+            self.current_best_verses = sorted(self.current_best_verses, key=lambda x: x[2])
 
         self.scored_verses = sorted(get_scores(texts, MODEL, TOKENIZER), key=lambda x: x[1]).copy()
         if self.feminine:
             self.scored_verses = [sv for sv in self.scored_verses if ' '.join(sv[0].split()[sv[0].split().index('She'):]) not in all_third_verses()]
         else:
             self.scored_verses = [sv for sv in self.scored_verses if ' '.join(sv[0].split()[sv[0].split().index('He'):]) not in all_third_verses()]
+        
         if original != '':
             originalWords = original.split()
             self.scored_verses = [sv for sv in self.scored_verses if sv[0].split()[-len(originalWords):] != originalWords]
@@ -567,7 +593,6 @@ class ThirdVerse(Verse):
 class FourthVerse(Verse):
 
     def __init__(self, thirdVerse):
-        self.current_best_verses = []
         super().__init__(TemplateHelper.object().fourth_verse_templates, thirdVerse)
 
     def generate_all(self, original='', multiple = False):
@@ -577,7 +602,7 @@ class FourthVerse(Verse):
             if not multiple:
                 fourth_verse_candidates = [self.previous_verse.current_verse]
             else:
-                fourth_verse_candidates = self.previous_verse.current_best_verses
+                fourth_verse_candidates = [(cbv[0], cbv[1]) for cbv in self.previous_verse.current_best_verses]
             
             print(f'Fourth verse candidates are {fourth_verse_candidates} (there should be 10)')
             print()
@@ -605,7 +630,9 @@ class FourthVerse(Verse):
                         if original != '':
                             originalWords = original.split()
                             scored_current = [sv for sv in scored_current if sv[0].split()[-len(originalWords):] != originalWords]
-                        self.current_best_verses.extend([(sc[0].split(), len(sc[0].split())) for sc in scored_current[:1]])
+                        self.current_best_verses.extend([(sc[0].split(), len(sc[0].split()),sc[1]) for sc in scored_current[:1]])
+                        self.current_best_verses = sorted(self.current_best_verses, key=lambda x: x[2])
+
 
                 if len(total_rhyming) > 0:
                     self.scored_verses = sorted(get_scores(texts, MODEL, TOKENIZER), key=lambda x: x[1]).copy()
@@ -634,18 +661,17 @@ class FifthVerse(Verse):
                 last_word = self.previous_verse.current_verse[0][-1]+','
                 fifth_verse_candidates = [(self.previous_verse.current_verse[0][:-1]+[last_word],self.previous_verse.current_verse[1])]
             else:
+                fifth_verse_candidates = [(cbv[0], cbv[1]) for cbv in self.previous_verse.current_best_verses]
                 fifth_verse_candidates = []
                 for cbv in self.previous_verse.current_best_verses:
                     last_word = cbv[0][-1]+','
                     fifth_verse_candidates.append((cbv[0][:-1]+[last_word],cbv[1]))
 
-            print(f'Fifth verse candidates are {fifth_verse_candidates} (there should be 10)')
-            print()
             for i, fvc in enumerate(fifth_verse_candidates):
                 print(f'At potential fifth verse {i}: {fvc}')
                 print()
                 potential_fifth_verses = [fvc]
-                final_fifth_verses = self.get_iteration_result(potential_fifth_verses, [3,4,5,6], final_fifth_verses, fvc, True)
+                final_fifth_verses = self.get_iteration_result(potential_fifth_verses, [1,2,3,4,5], final_fifth_verses, fvc, True)
             
             if len(final_fifth_verses) > 0:
                 texts = []
@@ -666,11 +692,12 @@ class FifthVerse(Verse):
                         if original != '':
                             originalWords = original.split()
                             scored_current = [sv for sv in scored_current if sv[0].split()[-len(originalWords):] != originalWords]
-                        print(f'for final fifth verse {ffv} the best two verses are')
+                        print(f'for final fifth verse {ffv[0]} the best one verses are')
                         print()
-                        print([(sc[0].split(), len(sc[0].split())) for sc in scored_current[:2]])
+                        print([(sc[0].split(), len(sc[0].split())) for sc in scored_current[:1]])
                         print()
-                        self.current_best_verses.extend([(sc[0].split(), len(sc[0].split())) for sc in scored_current[:2]])
+                        self.current_best_verses.extend([(sc[0].split(), len(sc[0].split()),sc[1]) for sc in scored_current[:1]])
+                        self.current_best_verses = sorted(self.current_best_verses, key=lambda x: x[2])
                 
                 if len(total_rhyming) > 0:
                     self.scored_verses = sorted(get_scores(texts, MODEL, TOKENIZER), key=lambda x: x[1]).copy()
@@ -689,28 +716,37 @@ class FifthVerse(Verse):
         if not multiple:
             return self.current_verse 
         else:
-            return self.current_best_verses[:5]
+            print("All fifth best verses are")
+            print(self.current_best_verses)
+            print("But the best five are")
+            print(self.current_best_verses[:5])
+            return [(cbv[0], cbv[1]) for cbv in self.current_best_verses[:5]]
 
     def get_next(self):
         pass
 
 
-def convert_limerick(verse1, result, kind, feminine, limerick, word):
+def convert_limerick(verse1, result, kind, feminine, limerick, name):
     additional_options = []
     syllables = syllables_in_verse(' '.join(verse1))
     if syllables in [8,9]:
         if result[kind] == '':
             if syllables == 8:
                 verse1.insert(1,'once')
-            if kind == 'm' and feminine:
+            if kind == 'm':
+                print("Getting masculine for limerick")
+                print(limerick)
                 remaining_verses = return_verses(get_masculine(limerick))
-            elif kind == 'f' and not feminine:
+            elif kind == 'f':
                 remaining_verses = return_verses(get_feminine(limerick))
             else:
-                remaining_verses = return_verses(limerick)
+                if feminine:
+                    remaining_verses = return_verses(get_feminine(limerick))
+                else:
+                    remaining_verses = return_verses(get_masculine(limerick))
             remaining_verses.insert(0,' '.join(verse1))
             result[kind] = remaining_verses
-        additional_options.append(word)
+        additional_options.append(name)
     return (result, additional_options)
                 
 
@@ -755,7 +791,7 @@ def getStartingVerse(adjective, profession):
     preposition = "a" if adjective[0] not in ['a','e','i','o'] else "an"
     second_verse_starting_candidates = [[preposition,  adjective, profession, 'who'], [preposition,  adjective, profession, 'whose']]
     secondVerse = SecondVerse(profession, second_verse_starting_candidates)
-    second_verse_candidates = secondVerse.generate_beggining()
+    second_verse_candidates = secondVerse.generate_beginning()
     secondVerse.generate_all(second_verse_candidates)
     return secondVerse
 
@@ -778,7 +814,10 @@ def computeLimericks(secondVerse, multiple = False):
     else:
         results = []
         limericks = [l[0] for l in limerick]
-        for i,l in enumerate(limericks):
+        if not limericks:
+            secondVerse.get_next()
+            computeLimericks(secondVerse)
+        for l in limericks:
             (result, potential) = finalise_limerick(l, thirdVerse.feminine)
             results.append((result, potential))
         return (results, thirdVerse.feminine)
@@ -798,13 +837,14 @@ def createLimerick(lim, kind, feminine, female, adjective, profession, place, op
     limerick =  Limerick(verse1 = lim[0], verse2 = lim[1], verse3 = lim[2][0].upper() + lim[2][1:], verse4 = lim[3], verse5 = lim[4],
     female = female, adjective = adjective, profession = profession, place = place, scored_second = options_second, 
     scored_third = options_third, scored_fourth = options_fourth, scored_fifth = options_fifth, names = names)
-    limerick.get_pronounciation()
+    limerick.get_pronunciation()
     limerick.get_perplexity()
     limerick.save()
     return limerick
     
 
 def run_limerick_generation_single(adjective, profession):
+    print("starting generation")
     secondVerse = getStartingVerse(adjective, profession)
     (limericks, thirdVerse, fourthVerse, fifthVerse, potential) = computeLimericks(secondVerse)
     male_id = 0; female_id = 0; place_id = 0
@@ -814,10 +854,12 @@ def run_limerick_generation_single(adjective, profession):
     options_fifth = [v[0] for v in fifthVerse.scored_verses][:25]
     results = []
     if limericks['m'] != '':
+        print("There is a male limerick")
         male_limerick = createLimerick(limericks['m'], 'm', thirdVerse.feminine, False, adjective, profession, False, options_second, options_third, options_fourth, options_fifth, potential['m'])
         male_id = male_limerick.pk
         results.append(male_limerick)
     if limericks['f'] != '':
+        print("There is a female limerick")
         female_limerick = createLimerick(limericks['f'], 'f', thirdVerse.feminine, True, adjective, profession, False, options_second, options_third, options_fourth, options_fifth, potential['f'])
         female_id = female_limerick.id
         if male_id != 0:
@@ -827,6 +869,7 @@ def run_limerick_generation_single(adjective, profession):
             male_limerick.save()
         results.append(female_limerick)
     if limericks['p'] != '':
+        print("there is a place limerick")
         female = True if profession in FEMININE_PROFESSIONS.keys() else False
         place_limerick = createLimerick(limericks['p'], 'p', thirdVerse.feminine, female, adjective, profession, True, options_second, options_third, options_fourth, options_fifth, potential['p'])
         place_id = place_limerick.id
@@ -841,12 +884,12 @@ def run_limerick_generation_single(adjective, profession):
             female_limerick.pair2 = place_id
             female_limerick.save()
         results.append(place_limerick)
+    print(f'Results to return is {results}')
     update_rankings()
     return results
 
 
 def generateFromFourth(fourthVerseText, fifthOriginal, adjective, profession, female, place):
-    print("Generating from fourth")
     fourthVerse = FourthVerse(None)
     fourthVerse.current_verse = (fourthVerseText.split(), len(fourthVerseText.split()))
     fourthVerse.scored_verses = [(fourthVerseText, 1)]
@@ -856,7 +899,7 @@ def generateFromFourth(fourthVerseText, fifthOriginal, adjective, profession, fe
     verses = split_limerick(limerick)
     result = Limerick(verse1 = verses[0], verse2 = verses[1], verse3 = verses[2], verse4 = verses[3], verse5 = verses[4],
     adjective = adjective, profession = profession, female = female, place = place)
-    result.get_pronounciation()
+    result.get_pronunciation()
     result.get_perplexity()
     result.save()
     update_rankings()
@@ -864,7 +907,6 @@ def generateFromFourth(fourthVerseText, fifthOriginal, adjective, profession, fe
 
 
 def generateFromThird(thirdVerseText, fourthOriginal, fifthOriginal, adjective, profession, female, place):
-    print("Generating from third")
     thirdVerse = ThirdVerse(None)
     thirdVerse.feminine = female
     thirdVerse.current_verse = (thirdVerseText.split(), len(thirdVerseText.split()))
@@ -877,7 +919,7 @@ def generateFromThird(thirdVerseText, fourthOriginal, fifthOriginal, adjective, 
     print(verses)
     result = Limerick(verse1 = verses[0], verse2 = verses[1], verse3 = verses[2], verse4 = verses[3], verse5 = verses[4],
     adjective = adjective, profession = profession, female = female, place = place)
-    result.get_pronounciation()
+    result.get_pronunciation()
     result.get_perplexity()
     result.save()
     update_rankings()
@@ -930,7 +972,7 @@ def generateFromSecond(secondVerseText, firstOriginal, thirdOriginal, fourthOrig
     verses = split_limerick(limerick)
     result = Limerick(verse1 = ' '.join(firstOriginalWords), verse2 = verses[1], verse3 = verses[2], verse4 = verses[3], verse5 = verses[4],
     adjective = adjective, profession = profession, female = female, place = place)
-    result.get_pronounciation()
+    result.get_pronunciation()
     result.get_perplexity()
     result.save()
     update_rankings()
@@ -991,6 +1033,8 @@ def run_limerick_generation_multiple(adjective, profession):
     results = []
     secondVerse = getStartingVerse(adjective, profession)
     resulting_limericks = computeLimericks(secondVerse, True)
+    print("Result from multiple generation")
+    print(resulting_limericks)
     for (limericks, potential) in resulting_limericks[0]:
         male_id = 0; female_id = 0; place_id = 0
         if limericks['m'] != '':
@@ -1024,3 +1068,5 @@ def run_limerick_generation_multiple(adjective, profession):
             print(f'New limerick ids: {male_id}, {female_id}, {place_id}')
     update_rankings()
     return results
+
+

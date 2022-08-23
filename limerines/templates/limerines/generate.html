@@ -9,6 +9,13 @@
 
 {{ all_existing_limericks|json_script:"all_limericks" }}
 {{ adj_prof_dict|json_script:"adjprof-data" }}
+{% if loading and next_id %}
+    {{ loading|json_script:"loading" }}
+    {{ next_id|json_script:"next_id" }}
+{% else %}
+    {{ "no-loading"|json_script:"loading" }}
+    {{ 0|json_script:"next_id" }}
+{% endif %}
 
 <link rel="stylesheet" type="text/css" href="{% static 'limerines/style_generate.css' %}">
 <script src="{% static 'limerines/code.js' %}"></script>

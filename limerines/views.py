@@ -3,6 +3,7 @@ from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.urls import resolve
+import datetime
 
 from .forms import FilterForm, LimerickForm, ADJECTIVE_CHOICES, SaveLimerickForm, VoteForm
 
@@ -26,6 +27,10 @@ def indexView(request):
         del request.session['filtered_limericks']
     except KeyError:
         pass
+    try:
+        del request.session['sort']
+    except KeyError:
+        pass
     return render(request, 'limerines/index.html')
 
 def all_limericks(request):
@@ -42,6 +47,10 @@ def all_limericks(request):
     except KeyError:
         pass
     sort = 'user'
+    try:
+        sort = request.session['sort']
+    except KeyError:
+        pass
     if request.method == "POST":
         print(request.POST)
         filter_form = FilterForm(request.POST)
@@ -82,9 +91,11 @@ def all_limericks(request):
                 limericks_list = limericks.order_by('model_rank')
             request.session['sort'] = sort
             request.session['filtered_limericks'] = [l.id for l in limericks_list]
-            print(request.session['filtered_limericks'])
     else:
-        limericks_list = Limerick.objects.order_by('rank')
+        if sort == 'user':
+            limericks_list = Limerick.objects.order_by('rank')
+        else:
+            limericks_list = Limerick.objects.order_by('model_rank')
         filter_form = FilterForm(initial={'gender':'All','adjective':'All','profession':'All','type':'All'})
 
     page = request.GET.get('page', 1)
@@ -124,14 +135,17 @@ def detail(request, limerick_id):
         return render(request, 'limerines/pageNotFound.html')
     if url_name == 'result' and limerick_id != new_limerick:
         return render(request, 'limerines/pageNotFound.html')
-    
-    try:
-        del request.session['new_limerick']
-    except KeyError:
-        pass
 
+    if url_name != 'result':
+        try:
+            del request.session['new_limerick']
+        except KeyError:
+            pass
+    
     limerick = get_object_or_404(Limerick, pk=limerick_id)
     if request.method == "POST":
+        print("DETAIL POST")
+        print(request.POST)
         if 'upvote' in request.POST:
             form = VoteForm(request.POST)
             if form.is_valid():
@@ -158,7 +172,7 @@ def detail(request, limerick_id):
                 if verse3 != 'hidden' and verse4 != 'hidden' and verse5 != 'hidden':
                     l = Limerick(verse1 = verse1, verse2 = verse2, verse3 = verse3, verse4 = verse4, verse5 = verse5, 
                     female = female, adjective = adjective, profession = profession, place = place)
-                    l.get_pronounciation()
+                    l.get_pronunciation()
                     l.get_perplexity()
                     l.save()
                     update_rankings()
@@ -184,6 +198,10 @@ def detail(request, limerick_id):
 
 def generate_limerick(request):
     try:
+        del request.session['sort']
+    except KeyError:
+        pass
+    try:
         del request.session['limericks']
     except KeyError:
         pass
@@ -202,10 +220,15 @@ def generate_limerick(request):
             adjective = form.cleaned_data.get('adjective')
             profession = form.cleaned_data.get('profession')
             kind = form.cleaned_data.get('kind')
+            now = datetime.datetime.now()
             if kind == 'single':
+                print(f'Starting single gleneration at {now}')
                 limericks = run_limerick_generation_single(adjective, profession)
             else:
+                print(f'Starting multi gleneration at {now}')
                 limericks = run_limerick_generation_multiple(adjective, profession)
+            now = datetime.datetime.now() 
+            print(f'Ending at {now}')
             first_limerick = limericks[0]
             request.session['limericks'] = [l.id for l in limericks]
             return redirect(reverse('limerines:edit', args=(first_limerick.id,)))

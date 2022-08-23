@@ -40,7 +40,6 @@
     {{ 0 | json_script:"previous-lim-id"}}
 {% endif %}
 
-<script src="https://code.jquery.com/jquery-3.5.1.js"></script>
 <link rel="stylesheet" type="text/css" href="{% static 'limerines/style_results.css' %}">
 <script src="{% static 'limerines/results_code.js' %}"></script>
 
@@ -143,6 +142,7 @@
         </div>
         <div id="back-button"><a id="originating-limerick" href="#">Back to Original</a></div>
         <img src="{% static 'limerines/media/edit-icon.png' %}" width=20px class="edit-filter" onclick="buttonClick()" id="edit-button">
+        <a href="{% url 'limerines:limericks' %}" class="limericks-back">Back to Limericks</a>
     </section>
     <section class="screen right">
         <div class="vline"></div>
