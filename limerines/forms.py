@@ -1,8 +1,14 @@
 from django import forms
-from .models import AdjProfHelper
+from django.db.utils import OperationalError
 
-ADJECTIVE_CHOICES = AdjProfHelper.object().adjectives_list
-PROFESSION_CHOICES = AdjProfHelper.object().profession_list
+try:
+    from .models import AdjProfHelper
+    ADJECTIVE_CHOICES = AdjProfHelper.object().adjectives_list
+    PROFESSION_CHOICES = AdjProfHelper.object().profession_list
+except OperationalError:
+    ADJECTIVE_CHOICES = []
+    PROFESSION_CHOICES = []
+    
 GENDER_CHOICES = (('All','All'),('female','Female'),('male','Male'))
 TYPE_CHOICES = (('All','All'),('name','Name'),('place','Place'))
 KIND_CHOICES = (('single','single'),('multiple', 'multiple'))
