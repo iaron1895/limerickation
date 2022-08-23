@@ -24,7 +24,7 @@ openpyxl==3.0.10
 packaging==21.3
 pandas==1.4.3
 pandas-stubs==1.4.3.220801
-psycopg2==2.9.3
+
 pyparsing==3.0.9
 python-dateutil==2.8.2
 pytz==2022.1
