@@ -44,4 +44,3 @@ types-pytz==2022.1.2
 typing_extensions==4.3.0
 urllib3==1.26.11
 whitenoise==6.2.0
-wrapt==1.14.1
