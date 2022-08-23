@@ -1,7 +1,6 @@
 import pickle
 import torch
 import nltk
-from nltk import download
 import numpy as np
 from nltk.stem import WordNetLemmatizer
 import re
@@ -15,7 +14,7 @@ def get_pos_tags(tokens):
     try:
         tags = nltk.pos_tag(tokens)
     except LookupError:
-        download('average_perceptron_tagger')
+        nltk.download('average_perceptron_tagger')
         tags = nltk.pos_tag(tokens)
     return tags
 
