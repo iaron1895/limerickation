@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand, CommandError
-from limerines.models import AdjProfHelper, EmbeddingsHelper, RhymePronHelper, TemplateHelper
+from limerines.models import AdjProfHelper, RhymePronHelper, TemplateHelper
 
 class Command(BaseCommand):
     def handle(self, *args, **kwargs):
@@ -15,8 +15,5 @@ class Command(BaseCommand):
             if not RhymePronHelper.object():
                 r = RhymePronHelper()
                 r.save()
-            if not EmbeddingsHelper.object():
-                e = EmbeddingsHelper()
-                e.save()
         except:
             raise CommandError('Initalization failed.')
