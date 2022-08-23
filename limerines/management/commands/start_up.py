@@ -3,7 +3,6 @@ from limerines.models import AdjProfHelper, RhymePronHelper, TemplateHelper
 import nltk
 class Command(BaseCommand):
     def handle(self, *args, **kwargs):
-        nltk.download('average_perceptron_tagger')
         try:
             if not AdjProfHelper.object():
                 a = AdjProfHelper()
