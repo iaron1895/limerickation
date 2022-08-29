@@ -2,11 +2,13 @@ import pickle
 import torch
 import nltk
 import numpy as np
+from nltk.corpus import wordnet as wn
 from nltk.stem import WordNetLemmatizer
 import re
 import collections
 
-
+lemmatizer = WordNetLemmatizer()
+lemmatizer.lemmatize('test')
 #from transformers import  GPT2Tokenizer, GPT2LMHeadModel, pipeline, BertTokenizer, BertLMHeadModel
 
 def get_pos_tags(tokens):
@@ -19,9 +21,7 @@ def get_pos_tags(tokens):
     return tags
 
 def get_feminine(words):
-    print("gettin feminine")
     tags = get_pos_tags(words)
-    print(tags)
     result = []
     for word, tag in tags:
         if tag == 'PRP' and word.lower() == 'him':
@@ -48,8 +48,6 @@ def get_feminine(words):
 def get_masculine(words):
     tags = get_pos_tags(words)
     result = []
-    print("gettin masculine")
-    print(tags)
     for word, tag in tags:
         if tag == 'PRP' and word.lower() == 'her':
             new_word = 'Him' if word[0].isupper() else 'him'
@@ -72,8 +70,6 @@ def get_masculine(words):
         else:
             new_word = word
         result.append(new_word)
-    print("result of masculine is")
-    print(result)
     return result
 
 def syllables_in_verse(verse):
@@ -95,15 +91,6 @@ def check_end_of_sentence(input_text, length_input_text, model, tokenizer):
             return True
     return False
 
-def save_model(model,filename):
-    """ 
-    Utility function to save the model to a file
-    """
-    path = "limerines/my_data/" + filename + ".pickle"
-    with open(path, 'wb') as target:
-        pickle.dump(model, target)
-    print(f'\nSaved model in {path}\n')
-
 def load_model(filename):
     """ 
     Utility function to load ngram
@@ -112,7 +99,7 @@ def load_model(filename):
         model = pickle.load(target)
     return model
     
-def get_three_highest(text, model, tokenizer, exceptions = []):
+"""def get_three_highest(text, model, tokenizer, exceptions = []):
     exceptions.extend(['wasn','couldn','hadn','wouldn','weren','shouldn','haven','hasn','isn','aren','didn'])
     inpts = tokenizer("There was " + text, return_tensors="pt")
 
@@ -127,7 +114,26 @@ def get_three_highest(text, model, tokenizer, exceptions = []):
         words = [w for w in results.split() if w.isalpha() and w not in exceptions and w not in resulting_words]
         resulting_words.extend(words)
         n += 1
-    return resulting_words
+    return resulting_words"""
+
+def get_three_highest(text, model, tokenizer, exceptions = []):
+    if exceptions:
+        exceptions = tokenizer(exceptions, add_prefix_space=True, add_special_tokens=False).input_ids
+        exceptions.extend([[2492], [3521], [8020], [3636], [6304], [6584], [4398], [5818], [2125], [3588], [1422]])
+    else:
+        exceptions = [[2492], [3521], [8020], [3636], [6304], [6584], [4398], [5818], [2125], [3588], [1422]]
+    result = model("There was " + text,
+        max_new_tokens=1,
+        pad_token_id = 50256,
+        num_return_sequences=5,
+        temperature = 1.25,
+        repetition_penalty = 1.5,
+        bad_words_ids = exceptions,
+        top_k=25)
+    result = [r['generated_text'].split() for r in result]
+    last_words = list(set([r[-1] for r in result if r[-1].isalpha()]))
+    return last_words[:3]
+
 
 def return_verses(limerick):
     remaining = limerick[3:].copy()
@@ -160,6 +166,31 @@ def return_verses(limerick):
     return [v2,v3,v4,v5]
 
 def get_ten_highest_verbs(text, model, tokenizer, exceptions = []):
+    if exceptions:
+        exceptions = tokenizer(exceptions, add_prefix_space=True, add_special_tokens=False).input_ids
+        exceptions.extend([[2492], [3521], [8020], [3636], [6304], [6584], [4398], [5818], [2125], [3588], [1422]])
+    else:
+        exceptions = [[2492], [3521], [8020], [3636], [6304], [6584], [4398], [5818], [2125], [3588], [1422]]
+
+    past_verbs = []
+    result = model("There was " + text,
+        max_new_tokens=1,
+        pad_token_id = 50256,
+        num_return_sequences=30,
+        temperature = 1.6,
+        repetition_penalty = 1.5,
+        bad_words_ids = exceptions,
+        top_k = 50)
+    result = [r['generated_text'] for r in result]
+    result = [r.split() for r in list(set(result))]
+    for res in result:
+        tags = get_pos_tags(res)
+        last_word_tag = tags[-1][1]
+        if last_word_tag == 'VBD' and res[-1] not in past_verbs:
+                past_verbs.append(res[-1])
+    return past_verbs[:10]
+
+def get_ten_highest_verbs_old(text, model, tokenizer, exceptions = []):
     exceptions.extend(['wasn','couldn','hadn','wouldn','weren','shouldn','haven','hasn','isn','aren','didn'])
     tokens = text.split()
     inpts = tokenizer("There was " + text, return_tensors="pt")
@@ -188,7 +219,6 @@ def score_individual(model, tokens_tensor):#perplexity
     return np.exp(loss.cpu().detach().numpy())
 
 def get_scores(texts, model, tokenizer):
-    lemmatizer = WordNetLemmatizer()
     result = []
     scored_texts = []
     for text in texts:
@@ -215,7 +245,7 @@ def get_scores(texts, model, tokenizer):
 def get_masked_word(text, unmasker):
     masked_words = []
     result = unmasker("There was " + text,top_k=5)
-    masked_words = [r["token_str"][1:] for r in result]
+    masked_words = [r["token_str"] for r in result]
     return masked_words
 
 def count_syllables(word):
@@ -351,8 +381,3 @@ def create_dictionary():
             embeddings_dict[word] = vector
     return embeddings_dict
 
-
-"""def find_closest_embeddings(embeddings_dict, input):
-    embedding = embeddings_dict[input]
-    return sorted(embeddings_dict.keys(), key=lambda word: spatial.distance.euclidean(embeddings_dict[word], embedding))[1:]
-"""

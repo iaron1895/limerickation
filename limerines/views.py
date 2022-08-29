@@ -230,7 +230,7 @@ try:
                 else:
                     print(f'Starting multi gleneration at {now}')
                     limericks = run_limerick_generation_multiple(adjective, profession)
-                now = datetime.datetime.now() 
+                now = datetime.datetime.now()
                 print(f'Ending at {now}')
                 first_limerick = limericks[0]
                 request.session['limericks'] = [l.id for l in limericks]
