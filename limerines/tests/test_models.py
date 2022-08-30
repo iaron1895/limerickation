@@ -1,6 +1,6 @@
 from turtle import update
 from django.test import TestCase
-from limerines.models import AdjProfHelper, FifthVerse, FourthVerse, TemplateHelper, RhymePronHelper, Limerick, ThirdVerse, update_rankings, SecondVerse
+from limerines.models import AdjProfHelper, FifthVerse, FourthVerse, TemplateHelper, RhymePronHelper, Limerick, ThirdVerse, convert_limerick, finalise_limerick, update_rankings, SecondVerse
 from unittest.mock import patch, Mock
 
 
@@ -588,4 +588,62 @@ class TestFifthVerse(TestCase):
         ,'but','he','looked','like','a','nursery','rhyme'],29,5)])
         self.assertEqual(self.fifthVerse.current_verse,(['an','old','man','who','lived','in','the','city','for','a','year.','He','said','that','if','the','court','and','he','looked','pretty','high,'
         ,'but','he','looked','like','a','nursery','rhyme'],29))
-    
+
+
+class TestHelperFunctions(TestCase):
+
+    def setUp(self):
+        self.rhymePronHelper = RhymePronHelper()
+        self.rhymePronHelper.save()
+
+    @patch('limerines.models.return_verses')
+    @patch('limerines.models.syllables_in_verse')
+    def test_convert_limerick(self, mock_syl, mock_ret_verses):
+        f_names = ['Pier','Greer']
+        place_names = ['Peer']
+        limerick = ['an','old','man','who','lived','in','the','city','for','a','year.','He','said','that','if','the','court','and','he','looked','pretty','high,'
+        ,'but','he','looked','like','a','nursery','rhyme']
+        verse1 = ["There", "was", "an", "old", "woman","named","Greer"]
+        result = {'m':'','f':'','p':''}
+        feminine = True
+        mock_syl.return_value = 8
+        mock_ret_verses.return_value = ['who lived in the city for a year.','She said that if the court', 'and she looked pretty high,','but she looked like a nursey rhyme.']
+
+        (result, additional_options) = convert_limerick(verse1, result, 'f', feminine, limerick, f_names[1])
+
+        self.assertEqual(result, {'m':'','f':['There once was an old woman named Greer', 'who lived in the city for a year.','She said that if the court', 'and she looked pretty high,','but she looked like a nursey rhyme.'],'p':''})
+        self.assertEqual(additional_options,['Greer'])
+
+        verse1place = ["There", "was", "an", "old", "woman","from","Peer"]
+        mock_ret_verses.return_value = ['who lived in the city for a year.','She said that if the court', 'and she looked pretty high,','but she looked like a nursey rhyme.']
+        (result, additional_options) = convert_limerick(verse1place, result, 'p', feminine, limerick, place_names[0])
+
+        self.assertEqual(result, {'m':'','f':['There once was an old woman named Greer', 'who lived in the city for a year.','She said that if the court', 'and she looked pretty high,','but she looked like a nursey rhyme.'],'p':['There once was an old woman from Peer', 'who lived in the city for a year.','She said that if the court', 'and she looked pretty high,','but she looked like a nursey rhyme.']})
+        self.assertEqual(additional_options,['Peer'])
+
+    @patch('limerines.models.convert_limerick')
+    @patch('limerines.models.RhymePronHelper.get_rhyming_name')
+    def test_finalise_limerick(self, mock_rhymes, mock_convert_lim):
+        limerick = ['an','old','man','who','lived','in','the','city','for','a','year.','He','said','that','if','the','court','and','he','looked','pretty','high,'
+        ,'but','he','looked','like','a','nursery','rhyme']
+        mock_rhymes.return_value = (['Leer'],['Pier','Greer'],['Peer'])
+
+        def convert_limerick_side_effect(verse1, result, kind, feminine, limerick, name):
+            if kind == 'm' and result['m'] == '':
+                result['m'] = ['There once was an old man named Leer', 'who lived in the city for a year.','He said that if the court', 'and he looked pretty high,','but he looked like a nursey rhyme.']
+                return (result,[name])
+            if kind == 'f' and result['f'] == '':
+                result['f'] = ['There once was an old woman named ' + name, 'who lived in the city for a year.','She said that if the court', 'and she looked pretty high,','but she looked like a nursey rhyme.']
+                return (result,[name])
+            if kind == 'p' and result['p'] == '':
+                result['p'] = ['There once was an old man from Peer', 'who lived in the city for a year.','He said that if the court', 'and he looked pretty high,','but he looked like a nursey rhyme.']
+                return (result,[name])
+            return (result,[name])
+
+        mock_convert_lim.side_effect = convert_limerick_side_effect
+
+        (result, potential) = finalise_limerick(limerick, False)
+        potential['f'].sort()
+        self.assertEqual(result, {'m':['There once was an old man named Leer', 'who lived in the city for a year.','He said that if the court', 'and he looked pretty high,','but he looked like a nursey rhyme.'],'f':['There once was an old woman named Pier', 'who lived in the city for a year.','She said that if the court', 'and she looked pretty high,','but she looked like a nursey rhyme.'],'p':['There once was an old man from Peer', 'who lived in the city for a year.','He said that if the court', 'and he looked pretty high,','but he looked like a nursey rhyme.']})
+        self.assertEqual(potential, {'m':['Leer'],'f':['Greer','Pier'],'p':['Peer']})
+
