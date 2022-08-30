@@ -1,0 +1,9 @@
+{% extends './base.html' %}
+{% load static %}
+{% block content %}
+
+<link rel="stylesheet" type="text/css" href="{% static 'limerines/style_pageNotFound.css' %}">
+<h2>Could not generate limericks at this time</h2>
+<a class="button" href="{% url 'limerines:generate' %}">Try again</a>
+{% endblock %}
+
