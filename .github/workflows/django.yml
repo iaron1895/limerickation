@@ -31,4 +31,5 @@ jobs:
         python -m nltk.downloader averaged_perceptron_tagger
     - name: Run Tests
       run: |
+        python manage.py start_up
         python manage.py test
