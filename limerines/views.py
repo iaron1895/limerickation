@@ -3,7 +3,6 @@ from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.urls import resolve
-import datetime
 
 from django.db.utils import OperationalError
 try:
@@ -14,6 +13,7 @@ try:
 
 
     def indexView(request):
+        # reset session in home page
         try:
             del request.session['limericks']
         except KeyError:
@@ -37,6 +37,7 @@ try:
         return render(request, 'limerines/index.html')
 
     def all_limericks(request):
+        # reset session in all limericks
         try:
             del request.session['limericks']
         except KeyError:
@@ -54,10 +55,10 @@ try:
             sort = request.session['sort']
         except KeyError:
             pass
+
         if request.method == "POST":
-            print(request.POST)
-            filter_form = FilterForm(request.POST)
-            if 'limerick_id' in request.POST:
+            filter_form = FilterForm(request.POST) # check if filtering all limericks is valid
+            if 'limerick_id' in request.POST: # if Post request contains a limerick, then it is an upvote/downvote request
                 form = VoteForm(request.POST)
                 if form.is_valid():
                     upvote = form.cleaned_data.get('upvote')
@@ -68,7 +69,7 @@ try:
                     elif upvote == 'false':
                         l.votes -= 1
                     l.save()
-                    update_rankings()
+                    update_rankings() # update all rankings after voting
             if filter_form.is_valid():
                 gender = filter_form.cleaned_data.get('gender')
                 adjective = filter_form.cleaned_data.get('adjective')
@@ -76,6 +77,8 @@ try:
                 type = filter_form.cleaned_data.get('type')
                 sort = filter_form.cleaned_data.get('sort')
                 limericks = Limerick.objects.all()
+
+                #get all filtered limericks by the fields specified by the user
                 if gender == 'male':
                     limericks = limericks.filter(female=False)
                 elif gender == 'female':
@@ -92,17 +95,18 @@ try:
                     limericks_list = limericks.order_by('rank')
                 else:
                     limericks_list = limericks.order_by('model_rank')
-                request.session['sort'] = sort
-                request.session['filtered_limericks'] = [l.id for l in limericks_list]
+
+                request.session['sort'] = sort # remember sorting of table
+                request.session['filtered_limericks'] = [l.id for l in limericks_list] # remember list of limericks
         else:
             if sort == 'user':
                 limericks_list = Limerick.objects.order_by('rank')
             else:
                 limericks_list = Limerick.objects.order_by('model_rank')
-            filter_form = FilterForm(initial={'gender':'All','adjective':'All','profession':'All','type':'All'})
+            filter_form = FilterForm(initial={'gender':'All','adjective':'All','profession':'All','type':'All'}) # if no filtering applied, show all limericks
 
         page = request.GET.get('page', 1)
-        paginator = Paginator(limericks_list, 10)
+        paginator = Paginator(limericks_list, 10) # split all limericks in pages of 10
         try:
             limericks = paginator.page(page)
         except PageNotAnInteger:
@@ -111,8 +115,9 @@ try:
             limericks = paginator.page(paginator.num_pages)
         return render(request, 'limerines/limericks.html', { 'sort' : sort, 'limericks': limericks , 'filter_form': filter_form})
 
+    # detail view to show results and edit capabilities of application
     def detail(request, limerick_id):
-        url_name = resolve(request.path).url_name
+        url_name = resolve(request.path).url_name 
         limericks = []
         new_limerick = 0
         originating = 0
@@ -134,7 +139,8 @@ try:
         except KeyError:
             pass
 
-        if url_name == 'edit' and limerick_id not in limericks:
+        # only limericks that have just been generated can be edited
+        if url_name == 'edit' and limerick_id not in limericks: 
             return render(request, 'limerines/pageNotFound.html')
         if url_name == 'result' and limerick_id != new_limerick:
             return render(request, 'limerines/pageNotFound.html')
@@ -147,9 +153,7 @@ try:
         
         limerick = get_object_or_404(Limerick, pk=limerick_id)
         if request.method == "POST":
-            print("DETAIL POST")
-            print(request.POST)
-            if 'upvote' in request.POST:
+            if 'upvote' in request.POST: # upvote request, voting directly from limerick
                 form = VoteForm(request.POST)
                 if form.is_valid():
                     upvote = form.cleaned_data.get('upvote')
@@ -158,9 +162,9 @@ try:
                     elif upvote == 'false':
                         limerick.votes -= 1
                     limerick.save()
-                    update_rankings()
+                    update_rankings() # update raking after voting
                     return render(request, 'limerines/detail.html', {'limericks':limericks, 'limerick':limerick, 'originating':originating, 'sort':sort})
-            if 'verse1' in request.POST:
+            if 'verse1' in request.POST: # if verse1 in post request, a regeneration reques has been sent
                 form = SaveLimerickForm(request.POST)
                 print(request.POST)
                 if form.is_valid():
@@ -172,6 +176,8 @@ try:
                     female = form.cleaned_data.get('female'); place = form.cleaned_data.get('place')
                     adjective = form.cleaned_data.get('adjective'); profession = form.cleaned_data.get('profession')
                     request.session['originating'] = limerick.id 
+
+                    # use the input data to check from which verse the regeneration should start
                     if verse3 != 'hidden' and verse4 != 'hidden' and verse5 != 'hidden':
                         l = Limerick(verse1 = verse1, verse2 = verse2, verse3 = verse3, verse4 = verse4, verse5 = verse5, 
                         female = female, adjective = adjective, profession = profession, place = place)
@@ -200,6 +206,7 @@ try:
             return render(request, 'limerines/detail.html', {'limericks':limericks, 'limerick':limerick, 'originating':originating, 'sort':sort})
 
     def generate_limerick(request):
+        # delete session before generating a limerick
         try:
             del request.session['sort']
         except KeyError:
@@ -217,29 +224,24 @@ try:
         except KeyError:
             pass
         if request.method == "POST":
-            print(request.POST)
-            form = LimerickForm(request.POST)
+            form = LimerickForm(request.POST) # get user input (adjective and profession)
             if form.is_valid():
                 adjective = form.cleaned_data.get('adjective')
                 profession = form.cleaned_data.get('profession')
-                kind = form.cleaned_data.get('kind')
-                now = datetime.datetime.now()
-                if kind == 'single':
-                    print(f'Starting single gleneration at {now}')
+                kind = form.cleaned_data.get('kind') # best limerick or quick limerick
+                if kind == 'single': # qucik limerick
                     try:
                         limericks = run_limerick_generation_single(adjective, profession)
                     except:
                         return render(request, 'limerines/errorGeneration.html')
-                else:
-                    print(f'Starting multi gleneration at {now}')
+                else: # best limerick
                     try:
                         limericks = run_limerick_generation_multiple(adjective, profession)
                     except:
                         return render(request, 'limerines/errorGeneration.html')
-                now = datetime.datetime.now()
-                print(f'Ending at {now}')
                 first_limerick = limericks[0]
                 request.session['limericks'] = [l.id for l in limericks]
+                # redirect to edit page for newly generated limericks
                 return redirect(reverse('limerines:edit', args=(first_limerick.id,)))
             else:
                 return render(request, 'limerines/generate.html', {'form': form})
