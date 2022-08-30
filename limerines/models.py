@@ -543,7 +543,7 @@ class ThirdVerse(Verse):
                 print()
                 potential_third_verses = []
                 start_prompt = ' '.join(tvc[0])
-                next_potential_verbs = get_ten_highest_verbs(start_prompt, GENERATOR, TOKENIZER, ["was","had"])
+                next_potential_verbs = get_ten_highest_verbs(start_prompt, GENERATOR, ["was","had"])
                 next_potential_verbs = random.sample(next_potential_verbs, 3)
                 for npv in next_potential_verbs:
                     new_verse = tvc[0] + [npv]
