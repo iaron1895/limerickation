@@ -57,7 +57,7 @@ function replaceLimerick() {
     document.getElementById("random-verse5").innerHTML = random_limerick[4]
     current_limerick.focus(); // use focus trick without setTimeOut
     current_limerick.classList.add('fadeIn');
-    setTimeout(replaceLimerick, 7000);
+    setTimeout(replaceLimerick, 10000);
 }
 
 function sendGenerationForm(kind) {
