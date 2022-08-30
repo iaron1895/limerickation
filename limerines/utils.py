@@ -1,5 +1,4 @@
 import pickle
-import torch
 import nltk
 import numpy as np
 from nltk.corpus import wordnet as wn
