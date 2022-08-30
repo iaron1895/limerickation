@@ -5,7 +5,8 @@ from nltk.corpus import wordnet as wn
 from nltk.stem import WordNetLemmatizer
 import re
 import collections
-
+from django.conf import settings
+import torch
 
 lemmatizer = WordNetLemmatizer()
 lemmatizer.lemmatize('test')
@@ -83,18 +84,30 @@ def syllables_in_verse(verse):
         syllables += count_syllables(word)
     return syllables
 
-def check_end_of_sentence(text, model):
+def check_end_of_sentence(text, generator, length_input_text, model, tokenizer):
     # code for the second verse to check if it is likely that a full stop comes at the end of the sentence
     # use model to get 10 likely options as final words
-    result = model("There was " + text,
-        max_new_tokens=1,
-        pad_token_id = 50256,
-        num_return_sequences=10)
-    result = [r['generated_text'].split() for r in result]
-    last_words = list(set([r[-1] for r in result]))
-    if any(lw[-1] == '.' for lw in last_words):
-        return True
-    return False
+    if USING_WEB:
+        result = generator("There was " + text,
+            max_new_tokens=1,
+            pad_token_id = 50256,
+            num_return_sequences=10)
+        result = [r['generated_text'].split() for r in result]
+        last_words = list(set([r[-1] for r in result]))
+        if any(lw[-1] == '.' for lw in last_words):
+            return True
+        return False
+    else:
+        if len(tokenizer(text)['input_ids']) != length_input_text:
+            return False
+        inputs = tokenizer.encode("There was " + text, return_tensors = 'pt')
+        outputs = model.generate(inputs, pad_token_id=tokenizer.eos_token_id, max_length = length_input_text+3, do_sample = True, num_return_sequences = 10)
+        for output in outputs:
+            text = tokenizer.decode(output, skip_special_tokens = True)
+            words = text.split()
+            if words[-1][-1] == '.':
+                return True
+        return False
 
 def load_model(filename):
     """ 
@@ -104,26 +117,41 @@ def load_model(filename):
         model = pickle.load(target)
     return model
     
-def get_three_highest(text, model, exceptions = []):
-    if exceptions:
-        exceptions = model.tokenizer(exceptions).input_ids
-        # add verbs that require an apostrophe as exceptions (wasn't, didn't, couldn't...)
-        exceptions.extend([[2492], [3521], [8020], [3636], [6304], [6584], [4398], [5818], [2125], [3588], [1422]])
-    else:
-        exceptions = [[2492], [3521], [8020], [3636], [6304], [6584], [4398], [5818], [2125], [3588], [1422]]
+def get_three_highest(text, generator, model, tokenizer, exceptions = []):
+    if USING_WEB:
+        if exceptions:
+            exceptions = generator.tokenizer(exceptions).input_ids
+            # add verbs that require an apostrophe as exceptions (wasn't, didn't, couldn't...)
+            exceptions.extend([[2492], [3521], [8020], [3636], [6304], [6584], [4398], [5818], [2125], [3588], [1422]])
+        else:
+            exceptions = [[2492], [3521], [8020], [3636], [6304], [6584], [4398], [5818], [2125], [3588], [1422]]
 
-    # use model to return 5 potential next words    
-    result = model("There was " + text,
-        max_new_tokens=1,
-        pad_token_id = 50256,
-        num_return_sequences=5,
-        repetition_penalty = 1.5,
-        bad_words_ids = exceptions)
-    result = [r['generated_text'].split() for r in result]
-    # filter to remove any punctuation
-    last_words = list(set([r[-1] for r in result if r[-1].isalpha()]))
-    # return three words
-    return last_words[:3]
+        # use model to return 5 potential next words    
+        result = generator("There was " + text,
+            max_new_tokens=1,
+            pad_token_id = 50256,
+            num_return_sequences=5,
+            repetition_penalty = 1.5,
+            bad_words_ids = exceptions)
+        result = [r['generated_text'].split() for r in result]
+        # filter to remove any punctuation
+        last_words = list(set([r[-1] for r in result if r[-1].isalpha()]))
+        # return three words
+        return last_words[:3]
+    else:
+        exceptions.extend(['wasn','couldn','hadn','wouldn','weren','shouldn','haven','hasn','isn','aren','didn'])
+        inpts = tokenizer("There was " + text, return_tensors="pt")
+        with torch.no_grad():
+            logits = model(**inpts).logits[:, -1, :]
+        resulting_words = []
+        n = 3
+        while len(resulting_words) < 3:
+            values,indices = torch.topk(logits, n)
+            results = tokenizer.decode(indices.tolist()[0])
+            words = [w for w in results.split() if w.isalpha() and w not in exceptions and w not in resulting_words]
+            resulting_words.extend(words)
+            n += 1
+        return resulting_words
 
 
 def return_verses(limerick):
@@ -157,35 +185,57 @@ def return_verses(limerick):
             break
     return [v2,v3,v4,v5]
 
-def get_ten_highest_verbs(text, model, exceptions = []):
-    if exceptions:
-        exceptions = model.tokenizer(exceptions).input_ids
-        # add verbs that require an apostrophe as exceptions (wasn't, didn't, couldn't...)
-        exceptions.extend([[2492], [3521], [8020], [3636], [6304], [6584], [4398], [5818], [2125], [3588], [1422]])
+def get_ten_highest_verbs(text, generator, model, tokenizer, exceptions = []):
+    if USING_WEB:
+        if exceptions:
+            exceptions = generator.tokenizer(exceptions).input_ids
+            # add verbs that require an apostrophe as exceptions (wasn't, didn't, couldn't...)
+            exceptions.extend([[2492], [3521], [8020], [3636], [6304], [6584], [4398], [5818], [2125], [3588], [1422]])
+        else:
+            exceptions = [[2492], [3521], [8020], [3636], [6304], [6584], [4398], [5818], [2125], [3588], [1422]]
+
+        past_verbs = []
+
+        # use the model to generate 30 potential next words
+        result = generator("There was " + text,
+            max_new_tokens=1,
+            pad_token_id = 50256,
+            num_return_sequences=30,
+            temperature = 1.6,
+            repetition_penalty = 1.5,
+            bad_words_ids = exceptions,
+            top_k = 50)
+
+        result = [r['generated_text'] for r in result]
+        result = [r.split() for r in list(set(result))]
+        for res in result:
+            tags = get_pos_tags(res)
+            last_word_tag = tags[-1][1]
+            # keep only verbs in the past tense as potential verb candidates
+            if last_word_tag == 'VBD' and res[-1] not in past_verbs:
+                    past_verbs.append(res[-1])
+        return past_verbs[:10]
     else:
-        exceptions = [[2492], [3521], [8020], [3636], [6304], [6584], [4398], [5818], [2125], [3588], [1422]]
-
-    past_verbs = []
-
-    # use the model to generate 30 potential next words
-    result = model("There was " + text,
-        max_new_tokens=1,
-        pad_token_id = 50256,
-        num_return_sequences=30,
-        temperature = 1.6,
-        repetition_penalty = 1.5,
-        bad_words_ids = exceptions,
-        top_k = 50)
-
-    result = [r['generated_text'] for r in result]
-    result = [r.split() for r in list(set(result))]
-    for res in result:
-        tags = get_pos_tags(res)
-        last_word_tag = tags[-1][1]
-        # keep only verbs in the past tense as potential verb candidates
-        if last_word_tag == 'VBD' and res[-1] not in past_verbs:
-                past_verbs.append(res[-1])
-    return past_verbs[:10]
+        exceptions.extend(['wasn','couldn','hadn','wouldn','weren','shouldn','haven','hasn','isn','aren','didn'])
+        tokens = text.split()
+        inpts = tokenizer("There was " + text, return_tensors="pt")
+        with torch.no_grad():
+            logits = model(**inpts).logits[:, -1, :]
+        resulting_words = []
+        n = 10
+        while len(resulting_words) < 10:
+            values,indices = torch.topk(logits, n)
+            results = tokenizer.decode(indices.tolist()[0])
+            words = [w for w in results.split() if w.isalpha() and w not in exceptions and w not in resulting_words]
+            past_verbs = []
+            for w in words:
+                tags = get_pos_tags(tokens+[w])
+                tag = tags[-1][1]
+                if tag == 'VBD':
+                    past_verbs.append(w)
+            resulting_words.extend(past_verbs)
+            n += 1
+        return resulting_words
 
 
 # calculate the perplexity of a text using the model provided
