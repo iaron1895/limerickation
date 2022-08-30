@@ -19,7 +19,7 @@ class Command(BaseCommand):
         except:
             raise CommandError('Initalization failed.')
 
-       """ try:
+        """ try:
             MODEL = GPT2LMHeadModel.from_pretrained('limerines/gpt2_models/distilgpt2-model')
         except:
             MODEL = GPT2LMHeadModel.from_pretrained('distilgpt2')
