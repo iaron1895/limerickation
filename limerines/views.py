@@ -226,10 +226,16 @@ try:
                 now = datetime.datetime.now()
                 if kind == 'single':
                     print(f'Starting single gleneration at {now}')
-                    limericks = run_limerick_generation_single(adjective, profession)
+                    try:
+                        limericks = run_limerick_generation_single(adjective, profession)
+                    except:
+                        return render(request, 'limerines/errorGeneration.html')
                 else:
                     print(f'Starting multi gleneration at {now}')
-                    limericks = run_limerick_generation_multiple(adjective, profession)
+                    try:
+                        limericks = run_limerick_generation_multiple(adjective, profession)
+                    except:
+                        return render(request, 'limerines/errorGeneration.html')
                 now = datetime.datetime.now()
                 print(f'Ending at {now}')
                 first_limerick = limericks[0]
