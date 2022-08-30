@@ -8,6 +8,8 @@ import collections
 from django.conf import settings
 import torch
 
+USING_WEB = getattr(settings, "WEB_APP_MODELS", None)
+
 lemmatizer = WordNetLemmatizer()
 lemmatizer.lemmatize('test')
 #from transformers import  GPT2Tokenizer, GPT2LMHeadModel, pipeline, BertTokenizer, BertLMHeadModel
