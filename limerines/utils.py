@@ -7,6 +7,7 @@ from nltk.stem import WordNetLemmatizer
 import re
 import collections
 
+
 lemmatizer = WordNetLemmatizer()
 lemmatizer.lemmatize('test')
 #from transformers import  GPT2Tokenizer, GPT2LMHeadModel, pipeline, BertTokenizer, BertLMHeadModel
@@ -79,7 +80,7 @@ def syllables_in_verse(verse):
         syllables += count_syllables(word)
     return syllables
 
-def check_end_of_sentence(input_text, length_input_text, model, tokenizer):
+    """def check_end_of_sentence(input_text, length_input_text, model, tokenizer):
     if len(tokenizer(input_text)['input_ids']) != length_input_text:
         return False
     inputs = tokenizer.encode("There was " + input_text, return_tensors = 'pt')
@@ -89,6 +90,19 @@ def check_end_of_sentence(input_text, length_input_text, model, tokenizer):
         words = text.split()
         if words[-1][-1] == '.':
             return True
+    return False"""
+
+def check_end_of_sentence(text, model):
+    result = model("There was " + text,
+        max_new_tokens=1,
+        pad_token_id = 50256,
+        num_return_sequences=10,
+        temperature = 1.25,
+        top_k=25)
+    result = [r['generated_text'].split() for r in result]
+    last_words = list(set([r[-1] for r in result]))
+    if any(lw[-1] == '.' for lw in last_words):
+        return True
     return False
 
 def load_model(filename):
@@ -116,9 +130,9 @@ def load_model(filename):
         n += 1
     return resulting_words"""
 
-def get_three_highest(text, model, tokenizer, exceptions = []):
+def get_three_highest(text, model, exceptions = []):
     if exceptions:
-        exceptions = tokenizer(exceptions, add_prefix_space=True, add_special_tokens=False).input_ids
+        exceptions = model.tokenizer(exceptions).input_ids
         exceptions.extend([[2492], [3521], [8020], [3636], [6304], [6584], [4398], [5818], [2125], [3588], [1422]])
     else:
         exceptions = [[2492], [3521], [8020], [3636], [6304], [6584], [4398], [5818], [2125], [3588], [1422]]
@@ -165,9 +179,9 @@ def return_verses(limerick):
             break
     return [v2,v3,v4,v5]
 
-def get_ten_highest_verbs(text, model, tokenizer, exceptions = []):
+def get_ten_highest_verbs(text, model, exceptions = []):
     if exceptions:
-        exceptions = tokenizer(exceptions, add_prefix_space=True, add_special_tokens=False).input_ids
+        exceptions = model.tokenizer(exceptions).input_ids
         exceptions.extend([[2492], [3521], [8020], [3636], [6304], [6584], [4398], [5818], [2125], [3588], [1422]])
     else:
         exceptions = [[2492], [3521], [8020], [3636], [6304], [6584], [4398], [5818], [2125], [3588], [1422]]
@@ -190,7 +204,7 @@ def get_ten_highest_verbs(text, model, tokenizer, exceptions = []):
                 past_verbs.append(res[-1])
     return past_verbs[:10]
 
-def get_ten_highest_verbs_old(text, model, tokenizer, exceptions = []):
+"""def get_ten_highest_verbs_old(text, model, tokenizer, exceptions = []):
     exceptions.extend(['wasn','couldn','hadn','wouldn','weren','shouldn','haven','hasn','isn','aren','didn'])
     tokens = text.split()
     inpts = tokenizer("There was " + text, return_tensors="pt")
@@ -212,18 +226,17 @@ def get_ten_highest_verbs_old(text, model, tokenizer, exceptions = []):
                 past_verbs.append(w)
         resulting_words.extend(past_verbs)
         n += 1
-    return resulting_words
+    return resulting_words"""
 
-def score_individual(model, tokens_tensor):#perplexity
-    loss=model(tokens_tensor, labels=tokens_tensor)[0]
-    return np.exp(loss.cpu().detach().numpy())
 
-def get_scores(texts, model, tokenizer):
+def get_scores(texts, perplexity):
     result = []
     scored_texts = []
-    for text in texts:
-        tokens_tensor = tokenizer.encode(text, add_special_tokens=False, return_tensors="pt")           
-        scored_texts.append((text, score_individual(model, tokens_tensor)))
+
+    results = perplexity.compute(predictions=texts, model_id='distilgpt2',add_start_token=False)
+    perplexities = results['perplexities']
+    scored_texts = zip(texts, perplexities)
+
     for (text,score) in scored_texts:
         lemmas = []
         tokens = []
