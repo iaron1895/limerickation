@@ -12,6 +12,7 @@ lemmatizer.lemmatize('test')
 #from transformers import  GPT2Tokenizer, GPT2LMHeadModel, pipeline, BertTokenizer, BertLMHeadModel
 
 def get_pos_tags(tokens):
+    # get POS tags for a list of words
     tags = None
     try:
         tags = nltk.pos_tag(tokens)
@@ -21,6 +22,7 @@ def get_pos_tags(tokens):
     return tags
 
 def get_feminine(words):
+    # transform all pronouns in a limerick to feminine pronouns
     tags = get_pos_tags(words)
     result = []
     for word, tag in tags:
@@ -46,6 +48,7 @@ def get_feminine(words):
     return result
 
 def get_masculine(words):
+    # transform all pronouns in a limerick to masculine pronouns
     tags = get_pos_tags(words)
     result = []
     for word, tag in tags:
@@ -73,25 +76,16 @@ def get_masculine(words):
     return result
 
 def syllables_in_verse(verse):
+    # use count_syllables function to count the total syllables in a verse
     syllables = 0
     tokens = verse.split()
     for word in tokens:
         syllables += count_syllables(word)
     return syllables
 
-    """def check_end_of_sentence(input_text, length_input_text, model, tokenizer):
-    if len(tokenizer(input_text)['input_ids']) != length_input_text:
-        return False
-    inputs = tokenizer.encode("There was " + input_text, return_tensors = 'pt')
-    outputs = model.generate(inputs, pad_token_id=tokenizer.eos_token_id, max_length = length_input_text+3, do_sample = True, num_return_sequences = 10)
-    for output in outputs:
-        text = tokenizer.decode(output, skip_special_tokens = True)
-        words = text.split()
-        if words[-1][-1] == '.':
-            return True
-    return False"""
-
 def check_end_of_sentence(text, model):
+    # code for the second verse to check if it is likely that a full stop comes at the end of the sentence
+    # use model to get 10 likely options as final words
     result = model("There was " + text,
         max_new_tokens=1,
         pad_token_id = 50256,
@@ -104,35 +98,21 @@ def check_end_of_sentence(text, model):
 
 def load_model(filename):
     """ 
-    Utility function to load ngram
+    Utility function to load model from pickle file
     """
     with open(filename, 'rb') as target:
         model = pickle.load(target)
     return model
     
-"""def get_three_highest(text, model, tokenizer, exceptions = []):
-    exceptions.extend(['wasn','couldn','hadn','wouldn','weren','shouldn','haven','hasn','isn','aren','didn'])
-    inpts = tokenizer("There was " + text, return_tensors="pt")
-
-    with torch.no_grad():
-        logits = model(**inpts).logits[:, -1, :]
-
-    resulting_words = []
-    n = 3
-    while len(resulting_words) < 3:
-        values,indices = torch.topk(logits, n)
-        results = tokenizer.decode(indices.tolist()[0])
-        words = [w for w in results.split() if w.isalpha() and w not in exceptions and w not in resulting_words]
-        resulting_words.extend(words)
-        n += 1
-    return resulting_words"""
-
 def get_three_highest(text, model, exceptions = []):
     if exceptions:
         exceptions = model.tokenizer(exceptions).input_ids
+        # add verbs that require an apostrophe as exceptions (wasn't, didn't, couldn't...)
         exceptions.extend([[2492], [3521], [8020], [3636], [6304], [6584], [4398], [5818], [2125], [3588], [1422]])
     else:
         exceptions = [[2492], [3521], [8020], [3636], [6304], [6584], [4398], [5818], [2125], [3588], [1422]]
+
+    # use model to return 5 potential next words    
     result = model("There was " + text,
         max_new_tokens=1,
         pad_token_id = 50256,
@@ -140,11 +120,14 @@ def get_three_highest(text, model, exceptions = []):
         repetition_penalty = 1.5,
         bad_words_ids = exceptions)
     result = [r['generated_text'].split() for r in result]
+    # filter to remove any punctuation
     last_words = list(set([r[-1] for r in result if r[-1].isalpha()]))
+    # return three words
     return last_words[:3]
 
 
 def return_verses(limerick):
+    # This function splits a limerick into its final four verses
     remaining = limerick[3:].copy()
     verse2 = []; verse3 = []; verse4 = []
     v2 = ''; v3 = ''; v4 = ''; v5 = ''
@@ -177,11 +160,14 @@ def return_verses(limerick):
 def get_ten_highest_verbs(text, model, exceptions = []):
     if exceptions:
         exceptions = model.tokenizer(exceptions).input_ids
+        # add verbs that require an apostrophe as exceptions (wasn't, didn't, couldn't...)
         exceptions.extend([[2492], [3521], [8020], [3636], [6304], [6584], [4398], [5818], [2125], [3588], [1422]])
     else:
         exceptions = [[2492], [3521], [8020], [3636], [6304], [6584], [4398], [5818], [2125], [3588], [1422]]
 
     past_verbs = []
+
+    # use the model to generate 30 potential next words
     result = model("There was " + text,
         max_new_tokens=1,
         pad_token_id = 50256,
@@ -190,40 +176,20 @@ def get_ten_highest_verbs(text, model, exceptions = []):
         repetition_penalty = 1.5,
         bad_words_ids = exceptions,
         top_k = 50)
+
     result = [r['generated_text'] for r in result]
     result = [r.split() for r in list(set(result))]
     for res in result:
         tags = get_pos_tags(res)
         last_word_tag = tags[-1][1]
+        # keep only verbs in the past tense as potential verb candidates
         if last_word_tag == 'VBD' and res[-1] not in past_verbs:
                 past_verbs.append(res[-1])
     return past_verbs[:10]
 
-"""def get_ten_highest_verbs_old(text, model, tokenizer, exceptions = []):
-    exceptions.extend(['wasn','couldn','hadn','wouldn','weren','shouldn','haven','hasn','isn','aren','didn'])
-    tokens = text.split()
-    inpts = tokenizer("There was " + text, return_tensors="pt")
 
-    with torch.no_grad():
-        logits = model(**inpts).logits[:, -1, :]
-
-    resulting_words = []
-    n = 10
-    while len(resulting_words) < 10:
-        values,indices = torch.topk(logits, n)
-        results = tokenizer.decode(indices.tolist()[0])
-        words = [w for w in results.split() if w.isalpha() and w not in exceptions and w not in resulting_words]
-        past_verbs = []
-        for w in words:
-            tags = get_pos_tags(tokens+[w])
-            tag = tags[-1][1]
-            if tag == 'VBD':
-                past_verbs.append(w)
-        resulting_words.extend(past_verbs)
-        n += 1
-    return resulting_words"""
-
-def score_individual(model, tokens_tensor):#perplexity
+# calculate the perplexity of a text using the model provided
+def score_individual(model, tokens_tensor):
     loss=model(tokens_tensor, labels=tokens_tensor)[0]
     return np.exp(loss.cpu().detach().numpy())
 
@@ -232,8 +198,11 @@ def get_scores(texts, model, tokenizer):
     result = []
     scored_texts = []
     for text in texts:
-        tokens_tensor = tokenizer.encode(text, add_special_tokens=False, return_tensors="pt")           
+        tokens_tensor = tokenizer.encode(text, add_special_tokens=False, return_tensors="pt")
+
+        # get the perplexity of each individual text in the list    
         scored_texts.append((text, score_individual(model, tokens_tensor)))
+
     for (text,score) in scored_texts:
         lemmas = []
         tokens = []
@@ -243,22 +212,27 @@ def get_scores(texts, model, tokenizer):
             else:
                 tokens.append(w[:-1])
         tags = get_pos_tags(tokens)
+        # we are interested in nouns verbs and adjectives
         interesting_words = [t[0] for t in tags if t[1][0] in ['N','V','A']]
         for iw in interesting_words:
+            # get the lemma (root) of every interesting word
             lemmas.append(lemmatizer.lemmatize(iw))
         lemma_counter=collections.Counter(lemmas)
         if any(value >  1 for value in lemma_counter.values()):
+            # add a repetition penalty
             score *= 1.25
         result.append((text, score))
     return result
 
-    
+
 def get_masked_word(text, unmasker):
     masked_words = []
-    result = unmasker("There was " + text,top_k=5)
+    # use the unmasker to return 5 potential masked words to plug in the text
+    result = unmasker("There was " + text, top_k=5) 
     masked_words = [r["token_str"] for r in result]
     return masked_words
 
+# code from https://eayd.in/?p=232
 def count_syllables(word):
     word = word.lower()
 
@@ -380,15 +354,4 @@ def count_syllables(word):
 
     # calculate the output
     return numVowels - disc + syls
-
-
-def create_dictionary():
-    embeddings_dict = {}
-    with open("limerines/my_data/glove.6B.50d.txt", 'r') as f:
-        for line in f:
-            values = line.split()
-            word = values[0]
-            vector = np.asarray(values[1:], "float32")
-            embeddings_dict[word] = vector
-    return embeddings_dict
 
