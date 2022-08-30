@@ -13,9 +13,9 @@ from .utils import get_three_highest, get_pos_tags, \
     return_verses, get_ten_highest_verbs, \
     get_feminine, get_masculine, load_model
 
-GENERATOR = pipeline('text-generation', tokenizer='distilgpt2', model='distilgpt2')
-MODEL = GPT2LMHeadModel.from_pretrained('limerines/gpt2_models/distilgpt2-model')
-TOKENIZER = GPT2Tokenizer.from_pretrained('limerines/gpt2_models/distilgpt2-tokenizer')
+GENERATOR = pipeline('text-generation', tokenizer='distilgpt2', model='distilgpt2')  
+MODEL = GPT2LMHeadModel.from_pretrained('distilgpt2')
+TOKENIZER = GPT2Tokenizer.from_pretrained('distilgpt2')
 UNMASKER = pipeline("fill-mask",model="bert-large-uncased-whole-word-masking")
 FEMININE_PROFESSIONS = {'actress':'actor', 'businesswoman':'businessman', 'saleswoman':'salesman', 'waitress':'waiter', 'woman':'man', 'girl':'boy'}
 
