@@ -95,9 +95,7 @@ def check_end_of_sentence(text, model):
     result = model("There was " + text,
         max_new_tokens=1,
         pad_token_id = 50256,
-        num_return_sequences=10,
-        temperature = 1.25,
-        top_k=25)
+        num_return_sequences=10)
     result = [r['generated_text'].split() for r in result]
     last_words = list(set([r[-1] for r in result]))
     if any(lw[-1] == '.' for lw in last_words):
@@ -139,10 +137,8 @@ def get_three_highest(text, model, exceptions = []):
         max_new_tokens=1,
         pad_token_id = 50256,
         num_return_sequences=5,
-        temperature = 1.25,
         repetition_penalty = 1.5,
-        bad_words_ids = exceptions,
-        top_k=25)
+        bad_words_ids = exceptions)
     result = [r['generated_text'].split() for r in result]
     last_words = list(set([r[-1] for r in result if r[-1].isalpha()]))
     return last_words[:3]
@@ -227,15 +223,17 @@ def get_ten_highest_verbs(text, model, exceptions = []):
         n += 1
     return resulting_words"""
 
+def score_individual(model, tokens_tensor):#perplexity
+    loss=model(tokens_tensor, labels=tokens_tensor)[0]
+    return np.exp(loss.cpu().detach().numpy())
 
-def get_scores(texts, perplexity):
+def get_scores(texts, model, tokenizer):
+    lemmatizer = WordNetLemmatizer()
     result = []
     scored_texts = []
-
-    results = perplexity.compute(predictions=texts, model_id='distilgpt2',add_start_token=False)
-    perplexities = results['perplexities']
-    scored_texts = zip(texts, perplexities)
-
+    for text in texts:
+        tokens_tensor = tokenizer.encode(text, add_special_tokens=False, return_tensors="pt")           
+        scored_texts.append((text, score_individual(model, tokens_tensor)))
     for (text,score) in scored_texts:
         lemmas = []
         tokens = []
@@ -253,6 +251,7 @@ def get_scores(texts, perplexity):
             score *= 1.25
         result.append((text, score))
     return result
+
     
 def get_masked_word(text, unmasker):
     masked_words = []
