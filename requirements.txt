@@ -17,10 +17,8 @@ dj-database-url==1.0.0
 Django==4.1
 django-cprofile-middleware==1.0.5
 django-environ==0.9.0
-django-heroku==0.3.1
 django-storages==1.13
 et-xmlfile==1.1.0
-evaluate==0.2.2
 filelock==3.7.1
 Flask==2.2.2
 Flask-BasicAuth==0.2.0
@@ -50,6 +48,7 @@ packaging==21.3
 pandas==1.4.3
 pandas-stubs==1.4.3.220801
 psutil==5.9.1
+psycopg2==2.9.3
 psycopg2-binary==2.9.3
 pyarrow==9.0.0
 pyparsing==3.0.9
