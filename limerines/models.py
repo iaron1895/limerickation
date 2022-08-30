@@ -4,7 +4,7 @@ import collections
 import requests
 import numpy as np
 from nltk.corpus import names
-from transformers import  GPT2Tokenizer, GPT2LMHeadModel, pipeline
+from transformers import  pipeline
 from evaluate import load
 
 from .utils import get_three_highest, get_pos_tags, \
