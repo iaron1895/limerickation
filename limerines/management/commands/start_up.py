@@ -18,15 +18,3 @@ class Command(BaseCommand):
                 r.save()
         except:
             raise CommandError('Initalization failed.')
-
-        """ try:
-            MODEL = GPT2LMHeadModel.from_pretrained('limerines/gpt2_models/distilgpt2-model')
-        except:
-            MODEL = GPT2LMHeadModel.from_pretrained('distilgpt2')
-            MODEL.save_pretrained('limerines/gpt2_models/distilgpt2-model')
-
-        try:
-            TOKENIZER = GPT2Tokenizer.from_pretrained('limerines/gpt2_models/distilgpt2-tokenizer')
-        except:
-            TOKENIZER = GPT2Tokenizer.from_pretrained('distilgpt2')
-            TOKENIZER.save_pretrained('limerines/gpt2_models/distilgpt2-tokenizer')"""
