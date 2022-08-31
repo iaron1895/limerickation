@@ -69,4 +69,11 @@ To set up limerickation, follow the below steps:
 5. You are now ready to run the server and interact with the application to generate limericks
 
     python manage.py runserver
+    
+
+Note: when cloning the repository, you will see that there is a folder limerines/my_data that contains pickle files. 
+
+These pickle files can be generated from the below repo
+
+https://github.com/iaron1895/limerickation-set-up
   
