@@ -73,7 +73,7 @@ To set up limerickation, follow the below steps:
 
 Note: when cloning the repository, you will see that there is a folder limerines/my_data that contains pickle files. 
 
-These pickle files can be generated from the below repo
+These pickle files can be generated from the below repo:
 
 https://github.com/iaron1895/limerickation-set-up
   
