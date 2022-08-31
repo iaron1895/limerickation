@@ -30,8 +30,11 @@ jobs:
         python -m nltk.downloader names
         python -m nltk.downloader averaged_perceptron_tagger
     - name: Run Tests
+      env:
+        ALLOWED_HOSTS: "localhost 127.0.0.1"
       run: |
         python manage.py makemigrations
         python manage.py migrate
         python manage.py start_up
         python manage.py test
+
